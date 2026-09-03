@@ -815,34 +815,45 @@
     }
 
     // ========== 匯率通用查詢函式 (支援歷史特定日期) ==========
-    async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
-      const dateVal = document.getElementById(dateInputId).value || new Date().toISOString().split('T')[0];
-      const badge = document.getElementById(badgeId);
-      if (badge) {
-        badge.innerText = '查詢中...';
-        badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
+async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
+  const dateVal = document.getElementById(dateInputId).value || new Date().toISOString().split('T')[0];
+  const badge = document.getElementById(badgeId);
+  const rateTitle = document.getElementById('rateTitleLabel');
+
+  if (badge) {
+    badge.innerText = '查詢中...';
+    badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
+  }
+
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/CNY');
+    const data = await res.json();
+
+    if (data && data.rates && data.rates.TWD) {
+      const liveRate = parseFloat(data.rates.TWD.toFixed(4));
+      
+      // 1. 填入下方輸入框
+      document.getElementById(rateInputId).value = liveRate;
+
+      // 2. 直接把標題上的「?」換成真正的匯率數字！
+      if (rateTitle) {
+        rateTitle.innerText = `該日匯率 (1 CNY = ${liveRate} TWD)`;
       }
 
-      try {
-        // 先嘗試抓取歷史日期匯率
-        const res = await fetch(`https://open.er-api.com/v6/latest/CNY`);
-        const data = await res.json();
-        if (data && data.rates && data.rates.TWD) {
-          const liveRate = parseFloat(data.rates.TWD.toFixed(4));
-          document.getElementById(rateInputId).value = liveRate;
-          if (badge) {
-            badge.innerText = `${dateVal} 匯率已取得`;
-            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
-          }
-        }
-      } catch (err) {
-        if (badge) {
-          badge.innerText = '使用離線預設值';
-          badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded';
-        }
+      // 3. 狀態標籤也清楚寫出抓到的匯率
+      if (badge) {
+        badge.innerText = `已取得：${liveRate}`;
+        badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold';
       }
-      updateCalcPreview();
     }
+  } catch (err) {
+    if (badge) {
+      badge.innerText = '使用預設值';
+      badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded';
+    }
+  }
+  updateCalcPreview();
+}
 
     function onDateChange() {
       const currency = document.getElementById('currencySelect').value;
