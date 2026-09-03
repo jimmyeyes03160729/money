@@ -137,7 +137,6 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
     
-    /* 強制消除 iOS Safari 日期選擇器外觀與溢出問題 */
     input[type="date"] {
       -webkit-appearance: none;
       -moz-appearance: none;
@@ -218,7 +217,6 @@
 
   <!-- 主系統介面 -->
   <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
-    <!-- 頂部資訊 -->
     <header class="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200 space-y-2">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
@@ -256,24 +254,43 @@
       <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
         <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 1. 金錢屬性與人員</h2>
 
+        <!-- 金錢屬性 -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1.5">金錢屬性（點擊切換，右側✕可刪除自訂項）</label>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-medium text-slate-500">金錢屬性</label>
+            <button type="button" onclick="toggleCategoryDrawer()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium">
+              ＋ 新增屬性
+            </button>
+          </div>
           <div id="categoryContainer" class="flex flex-wrap gap-2 mb-2"></div>
-          <div class="flex gap-2">
+          
+          <!-- 折疊抽屜：點擊才顯示新增屬性輸入框 -->
+          <div id="newCategoryDrawer" class="hidden flex gap-2 pt-1">
             <input id="newCategoryInput" type="text" placeholder="自訂屬性 (如: 買菜代付)" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <button onclick="addCategory()" class="bg-slate-100 border border-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-lg active:bg-slate-200">新增屬性</button>
+            <button onclick="addCategory()" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg active:bg-indigo-700 font-medium">確定新增</button>
+            <button onclick="toggleCategoryDrawer()" class="border border-slate-300 text-slate-500 text-xs px-2.5 py-1.5 rounded-lg">取消</button>
           </div>
         </div>
 
+        <!-- 分攤人員 -->
         <div class="pt-2 border-t border-slate-100">
           <div class="flex justify-between items-center mb-1.5">
             <label class="block text-xs font-medium text-slate-500" id="memberSectionTitle">選擇本次分攤成員</label>
-            <button onclick="toggleAllMembers()" class="text-[11px] text-indigo-600">全選 / 取消其他人</button>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleAllMembers()" class="text-[11px] text-indigo-600">全選 / 取消其他人</button>
+              <span class="text-slate-300 text-xs">|</span>
+              <button type="button" onclick="toggleMemberDrawer()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium">
+                ＋ 新增人員
+              </button>
+            </div>
           </div>
           <div id="memberCheckboxes" class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-2"></div>
-          <div class="flex gap-2">
-            <input id="newMemberInput" type="text" placeholder="新增欠款人名稱" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <button onclick="addMember()" class="bg-slate-100 border border-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-lg active:bg-slate-200">新增人員</button>
+          
+          <!-- 折疊抽屜：點擊才顯示新增人員輸入框 -->
+          <div id="newMemberDrawer" class="hidden flex gap-2 pt-1">
+            <input id="newMemberInput" type="text" placeholder="輸入欠款人員名稱" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <button onclick="addMember()" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg active:bg-indigo-700 font-medium">確定新增</button>
+            <button onclick="toggleMemberDrawer()" class="border border-slate-300 text-slate-500 text-xs px-2.5 py-1.5 rounded-lg">取消</button>
           </div>
         </div>
       </section>
@@ -284,7 +301,6 @@
           <button onclick="openCurrencyModal()" class="text-[11px] text-indigo-600 underline">自訂常用幣別</button>
         </div>
         
-        <!-- 日期與幣別分行排版，徹底解決重疊與溢出邊界 -->
         <div class="space-y-2.5">
           <div>
             <div class="flex justify-between items-center mb-1">
@@ -668,7 +684,6 @@
   </div>
 
   <script>
-    // ========== 20 大常用幣別清單 ==========
     const ALL_AVAILABLE_CURRENCIES = [
       { code: 'TWD', name: '新台幣 (TWD)' },
       { code: 'CNY', name: '人民幣 (CNY)' },
@@ -694,13 +709,13 @@
 
     const DEFAULT_USER_CURRENCIES = ['TWD', 'CNY', 'JPY'];
 
-    // ========== 版本日誌 ==========
     const APP_CHANGELOG = [
       {
         version: "v1.02",
         date: "2026-09-03",
         title: "新增多幣別管理與常用 20 國幣別支援",
         notes: [
+          "新增屬性與人員折疊抽屜：點擊按鈕才展開輸入框，保持頁面簡潔。",
           "排版修復：徹底解決手機端日期與幣別選單重疊問題，改為獨立流式排版。",
           "新增「📅 跳至今日」按鈕：一鍵快速帶入當天日期並自動重新查詢當日牌告匯率。",
           "新增外幣支付模式選擇：支援「現金（0%卡費）」與「信用卡（彈性微調手續費）」雙選模式。",
@@ -754,6 +769,31 @@
 
     let pendingGoogleUser = null;
     let activePartialMember = null;
+
+    // ========== 抽屜展開/收起邏輯 ==========
+    function toggleCategoryDrawer() {
+      const drawer = document.getElementById('newCategoryDrawer');
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        document.getElementById('newCategoryInput').focus();
+      } else {
+        drawer.classList.add('hidden');
+        document.getElementById('newCategoryInput').value = '';
+      }
+    }
+
+    function toggleMemberDrawer() {
+      const drawer = document.getElementById('newMemberDrawer');
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        document.getElementById('newMemberInput').focus();
+      } else {
+        drawer.classList.add('hidden');
+        document.getElementById('newMemberInput').value = '';
+      }
+    }
 
     function setTodayDate(inputId, isQuick = false) {
       const today = new Date().toISOString().split('T')[0];
@@ -1294,6 +1334,7 @@
         state.selectedCategory = name;
         syncToStorage();
         input.value = '';
+        toggleCategoryDrawer();
         renderCategories();
         renderMemberCheckboxes();
         updateCalcPreview();
@@ -1379,6 +1420,7 @@
         state.members.push(name);
         syncToStorage();
         input.value = '';
+        toggleMemberDrawer();
 
         renderMemberCheckboxes(currentChecked);
         updateCalcPreview();
