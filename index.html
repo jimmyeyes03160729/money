@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="出遊分帳" />
+  <title>家庭出遊分帳</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+  <div class="max-w-md mx-auto px-4 py-6 space-y-6">
+    
+    <!-- 標題與重設 -->
+    <header class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">出遊分帳趣</h1>
+        <p class="text-xs text-slate-500">免安裝家庭分帳小幫手</p>
+      </div>
+      <button onclick="resetAllData()" class="text-xs text-rose-500 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200">
+        清空重置
+      </button>
+    </header>
+
+    <!-- 1. 成員管理 -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <h2 class="text-sm font-semibold text-slate-700 mb-3">1. 出遊成員</h2>
+      <div class="flex gap-2 mb-3">
+        <input id="newMemberInput" type="text" placeholder="輸入成員名稱（如：爸爸）" 
+               class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <button onclick="addMember()" class="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-xl active:bg-indigo-700">
+          新增
+        </button>
+      </div>
+      <div id="memberBadges" class="flex flex-wrap gap-2"></div>
+    </section>
+
+    <!-- 2. 新增支出 -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+      <h2 class="text-sm font-semibold text-slate-700">2. 記錄支出</h2>
+      
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">消費項目</label>
+        <input id="itemTitle" type="text" placeholder="例如：加油、晚餐、門票" 
+               class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">金額 (NTD)</label>
+          <input id="itemAmount" type="number" min="0" placeholder="0" 
+                 class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">代墊付款人</label>
+          <select id="payerSelect" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="block text-xs font-medium text-slate-500">誰要分攤？</label>
+          <button type="button" onclick="toggleAllSplitters()" class="text-xs text-indigo-600">全選 / 取消</button>
+        </div>
+        <div id="splitterCheckboxes" class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200"></div>
+      </div>
+
+      <button onclick="addExpense()" class="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-xl active:bg-slate-800 transition">
+        記錄這筆支出
+      </button>
+    </section>
+
+    <!-- 3. 結算報表 -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+      <div class="flex justify-between items-center">
+        <h2 class="text-sm font-semibold text-slate-700">3. 結算結果 (最少轉帳次數)</h2>
+        <button onclick="copySettlementReport()" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg active:bg-emerald-100">
+          複製結算給 LINE
+        </button>
+      </div>
+      <div id="settlementList" class="space-y-2"></div>
+    </section>
+
+    <!-- 4. 支出明細 -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+      <h2 class="text-sm font-semibold text-slate-700">支出歷史記錄</h2>
+      <div id="expenseHistory" class="space-y-2 text-xs"></div>
+    </section>
+
+  </div>
+
+  <script>
+    let state = {
+      members: JSON.parse(localStorage.getItem('trip_members')) || ['媽媽', '爸爸', '我'],
+      expenses: JSON.parse(localStorage.getItem('trip_expenses')) || []
+    };
+
+    function saveState() {
+      localStorage.setItem('trip_members', JSON.stringify(state.members));
+      localStorage.setItem('trip_expenses', JSON.stringify(state.expenses));
+      render();
+    }
+
+    function addMember() {
+      const input = document.getElementById('newMemberInput');
+      const name = input.value.trim();
+      if (name && !state.members.includes(name)) {
+        state.members.push(name);
+        input.value = '';
+        saveState();
+      }
+    }
+
+    function removeMember(name) {
+      const isUsed = state.expenses.some(e => e.payer === name || e.splitters.includes(name));
+      if (isUsed) {
+        alert('該成員已有支出記錄，無法直接刪除');
+        return;
+      }
+      state.members = state.members.filter(m => m !== name);
+      saveState();
+    }
+
+    function toggleAllSplitters() {
+      const checkboxes = document.querySelectorAll('input[name="splitter"]');
+      const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+      checkboxes.forEach(cb => cb.checked = anyUnchecked);
+    }
+
+    function addExpense() {
+      const title = document.getElementById('itemTitle').value.trim();
+      const amount = parseFloat(document.getElementById('itemAmount').value);
+      const payer = document.getElementById('payerSelect').value;
+      
+      const splitters = Array.from(document.querySelectorAll('input[name="splitter"]:checked'))
+                             .map(cb => cb.value);
+
+      if (!title) return alert('請輸入消費項目');
+      if (!amount || amount <= 0) return alert('請輸入有效金額');
+      if (!payer) return alert('請選擇付款人');
+      if (splitters.length === 0) return alert('至少需選擇一位分攤人');
+
+      state.expenses.push({
+        id: Date.now(),
+        title,
+        amount,
+        payer,
+        splitters,
+        date: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+      });
+
+      document.getElementById('itemTitle').value = '';
+      document.getElementById('itemAmount').value = '';
+      saveState();
+    }
+
+    function deleteExpense(id) {
+      state.expenses = state.expenses.filter(e => e.id !== id);
+      saveState();
+    }
+
+    function resetAllData() {
+      if (confirm('確定要清空所有成員與記帳資料嗎？')) {
+        localStorage.clear();
+        state = { members: ['媽媽', '爸爸', '我'], expenses: [] };
+        render();
+      }
+    }
+
+    // 最少轉帳次數演算法 (Greedy)
+    function calculateSettlement() {
+      const balances = {};
+      state.members.forEach(m => balances[m] = 0);
+
+      state.expenses.forEach(e => {
+        balances[e.payer] += e.amount;
+        const splitAmount = e.amount / e.splitters.length;
+        e.splitters.forEach(s => balances[s] -= splitAmount);
+      });
+
+      const creditors = [];
+      const debtors = [];
+
+      for (const [member, balance] of Object.entries(balances)) {
+        const rounded = Math.round(balance);
+        if (rounded > 0) creditors.push({ member, amount: rounded });
+        else if (rounded < 0) debtors.push({ member, amount: -rounded });
+      }
+
+      creditors.sort((a, b) => b.amount - a.amount);
+      debtors.sort((a, b) => b.amount - a.amount);
+
+      const transactions = [];
+      let i = 0, j = 0;
+
+      while (i < debtors.length && j < creditors.length) {
+        const payAmount = Math.min(debtors[i].amount, creditors[j].amount);
+        transactions.push({
+          from: debtors[i].member,
+          to: creditors[j].member,
+          amount: Math.round(payAmount)
+        });
+
+        debtors[i].amount -= payAmount;
+        creditors[j].amount -= payAmount;
+
+        if (debtors[i].amount === 0) i++;
+        if (creditors[j].amount === 0) j++;
+      }
+
+      return transactions;
+    }
+
+    function copySettlementReport() {
+      const transfers = calculateSettlement();
+      if (transfers.length === 0) {
+        alert('目前無欠款或帳目已平！');
+        return;
+      }
+      let text = '🧾【家庭旅遊結算清單】\n\n';
+      transfers.forEach(t => {
+        text += `👉 ${t.from} 應給 ${t.to}：NT$ ${t.amount}\n`;
+      });
+      text += '\n大家辛苦了！轉完帳請在群組回報～';
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('結算文字已複製，可直接貼到 LINE 群組！');
+      });
+    }
+
+    function render() {
+      // 1. 成員標籤
+      const badgesContainer = document.getElementById('memberBadges');
+      badgesContainer.innerHTML = state.members.map(m => `
+        <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-medium border border-slate-300">
+          ${m}
+          <button onclick="removeMember('${m}')" class="text-slate-400 hover:text-rose-500 font-bold ml-1">×</button>
+        </span>
+      `).join('');
+
+      // 2. 付款人選單
+      const payerSelect = document.getElementById('payerSelect');
+      payerSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
+
+      // 3. 分攤成員 Checkbox
+      const splitterBox = document.getElementById('splitterCheckboxes');
+      splitterBox.innerHTML = state.members.map(m => `
+        <label class="inline-flex items-center gap-2 text-xs text-slate-700">
+          <input type="checkbox" name="splitter" value="${m}" checked 
+                 class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+          <span>${m}</span>
+        </label>
+      `).join('');
+
+      // 4. 結算結果
+      const transfers = calculateSettlement();
+      const settlementList = document.getElementById('settlementList');
+      if (transfers.length === 0) {
+        settlementList.innerHTML = `<div class="text-xs text-slate-400 py-2">目前無待結算帳目</div>`;
+      } else {
+        settlementList.innerHTML = transfers.map(t => `
+          <div class="flex justify-between items-center bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+            <div>
+              <span class="font-semibold text-rose-600">${t.from}</span>
+              <span class="text-slate-400 mx-1">應付給</span>
+              <span class="font-semibold text-emerald-600">${t.to}</span>
+            </div>
+            <div class="font-bold text-slate-800 text-sm">NT$ ${t.amount}</div>
+          </div>
+        `).join('');
+      }
+
+      // 5. 支出歷史
+      const historyList = document.getElementById('expenseHistory');
+      if (state.expenses.length === 0) {
+        historyList.innerHTML = `<div class="text-slate-400">尚無支出項目</div>`;
+      } else {
+        historyList.innerHTML = state.expenses.slice().reverse().map(e => `
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+            <div>
+              <div class="font-medium text-slate-800">${e.title}</div>
+              <div class="text-[11px] text-slate-400">${e.payer} 先付 • 分攤：${e.splitters.join(', ')}</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-semibold text-slate-700">NT$ ${e.amount}</span>
+              <button onclick="deleteExpense(${e.id})" class="text-slate-300 hover:text-rose-500">✕</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 初始化渲染
+    render();
+  </script>
+</body>
+</html>
