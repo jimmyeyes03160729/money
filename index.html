@@ -9,7 +9,7 @@
   <title>欠款記帳管理系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Firebase SDK 模組 (已包含你的專屬金鑰) -->
+  <!-- Firebase SDK 模組 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
@@ -213,7 +213,7 @@
             <label class="block text-xs font-medium text-slate-500">選擇本次分攤成員（「自己」預設勾選）</label>
             <button onclick="toggleAllMembers()" class="text-[11px] text-indigo-600">全選 / 取消其他人</button>
           </div>
-          <!-- 成員清單 (固定包含「自己」) -->
+          <!-- 成員清單 -->
           <div id="memberCheckboxes" class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-2"></div>
           <div class="flex gap-2">
             <input id="newMemberInput" type="text" placeholder="新增欠款人名稱" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
@@ -240,13 +240,14 @@
           </div>
         </div>
 
+        <!-- 人民幣匯率區塊 (已修正手機破版排版) -->
         <div id="cnyConfigBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs font-semibold text-amber-900" id="rateTitleLabel">該日匯率 (1 CNY = ? TWD)</span>
-              <span id="rateStatusBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">查詢中</span>
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-xs font-bold text-amber-900" id="rateTitleLabel">該日匯率 (1 CNY = ? TWD)</div>
+            <div class="flex items-center gap-1.5 self-start sm:self-auto">
+              <span id="rateStatusBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">查詢中</span>
+              <button type="button" onclick="fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge')" class="text-[11px] text-amber-700 underline active:text-amber-900 whitespace-nowrap">🔄 重新抓取</button>
             </div>
-            <button type="button" onclick="fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge')" class="text-[11px] text-amber-700 underline active:text-amber-900">🔄 重新抓取</button>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -323,7 +324,7 @@
           </button>
         </div>
 
-        <!-- 臨時新增快捷表單 (支援幣別) -->
+        <!-- 臨時新增快捷表單 -->
         <div id="quickAddBox" class="hidden pt-3 border-t border-slate-100 space-y-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-bold text-indigo-900">⚡ 臨時新增欠款</span>
@@ -338,15 +339,21 @@
             </select>
           </div>
 
-          <!-- 臨時人民幣匯率 -->
-          <div id="quickCnyBox" class="hidden grid grid-cols-2 gap-2 bg-amber-50 p-2 rounded-lg border border-amber-200">
-            <div>
-              <label class="block text-[10px] text-amber-800">匯率</label>
-              <input id="quickCnyRate" type="number" step="0.0001" value="4.55" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+          <!-- 臨時人民幣匯率 (排版調整) -->
+          <div id="quickCnyBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px] text-amber-900">
+              <span class="font-bold">匯率設定</span>
+              <span id="quickRateStatus" class="font-semibold text-emerald-700">自動抓取</span>
             </div>
-            <div>
-              <label class="block text-[10px] text-amber-800">信用卡 %</label>
-              <input id="quickCardFee" type="number" step="0.1" value="1.5" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-amber-800">匯率</label>
+                <input id="quickCnyRate" type="number" step="0.0001" value="4.55" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+              </div>
+              <div>
+                <label class="block text-[10px] text-amber-800">信用卡 %</label>
+                <input id="quickCardFee" type="number" step="0.1" value="1.5" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+              </div>
             </div>
           </div>
 
@@ -366,12 +373,12 @@
         </div>
       </div>
 
-      <!-- 成員卡片列表 (過濾掉自己) -->
+      <!-- 成員卡片列表 -->
       <div id="membersDebtList" class="space-y-3"></div>
     </div>
   </div>
 
-  <!-- 彈窗 1：編輯細項 Modal (支援日期抓匯率) -->
+  <!-- 彈窗 1：編輯細項 Modal -->
   <div id="editRecordModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-4 space-y-3 max-h-[90vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -385,7 +392,7 @@
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-medium text-slate-600">日期</label>
-            <button type="button" onclick="fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge')" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
+            <button type="button" onclick="fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge', 'editRateTitleLabel')" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
           </div>
           <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg">
         </div>
@@ -420,11 +427,11 @@
           </div>
         </div>
 
-        <!-- 人民幣匯率與手續費 (編輯用) -->
+        <!-- 人民幣匯率與手續費 (編輯用排版優化) -->
         <div id="editCnyBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
-          <div class="flex justify-between items-center">
-            <span class="text-[10px] text-amber-800 font-semibold">人民幣設定</span>
-            <span id="editRateStatusBadge" class="text-[9px] bg-amber-200 text-amber-900 px-1 rounded">連線可查</span>
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">人民幣設定</span>
+            <span id="editRateStatusBadge" class="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-semibold self-start sm:self-auto">連線可查</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -438,13 +445,11 @@
           </div>
         </div>
 
-        <!-- 重新分配分攤成員 (包含自己) -->
         <div>
           <label class="block font-medium text-slate-600 mb-1">分攤人員（修正勾選）：</label>
           <div id="editMembersCheckboxes" class="grid grid-cols-2 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200"></div>
         </div>
 
-        <!-- 換算預覽 -->
         <div class="bg-indigo-50 p-2.5 rounded-lg border border-indigo-200 text-indigo-900 space-y-1">
           <div class="flex justify-between">
             <span>折合台幣總額：</span>
@@ -489,7 +494,6 @@
   </div>
 
   <script>
-    // 預設分類：出遊分攤改為「分攤」
     const DEFAULT_CATEGORIES = ['分攤', '一般代墊'];
 
     let state = {
@@ -501,7 +505,6 @@
       records: JSON.parse(localStorage.getItem('app_records')) || [] 
     };
 
-    // 舊資料相容轉換：若有舊的「出遊分攤」自動轉為「分攤」
     state.categories = state.categories.map(c => c === '出遊分攤' ? '分攤' : c);
     if (!state.categories.includes('分攤')) state.categories.unshift('分攤');
 
@@ -584,7 +587,6 @@
       }
     }
 
-    // Google 登入
     async function handleGoogleSignIn() {
       try {
         const result = await window.cloudAuth.loginWithGoogle();
@@ -673,7 +675,6 @@
       }
     }
 
-    // 第一步：屬性渲染 (分攤 / 一般代墊)
     function renderCategories() {
       const container = document.getElementById('categoryContainer');
       container.innerHTML = state.categories.map(cat => {
@@ -731,7 +732,6 @@
       renderCategories();
     }
 
-    // 成員渲染：固定加入「自己」，並預設打勾
     function renderMemberCheckboxes(preservedChecked = null) {
       const container = document.getElementById('memberCheckboxes');
 
@@ -743,7 +743,6 @@
         checkedSet = currentlyChecked.length > 0 ? new Set(currentlyChecked) : new Set(['自己', ...state.members]);
       }
 
-      // 「自己」固定在最前面
       const selfChecked = checkedSet.has('自己');
       let html = `
         <div class="flex items-center justify-between bg-indigo-50 border border-indigo-200 px-2 py-1.5 rounded-lg">
@@ -807,58 +806,52 @@
 
     function toggleAllMembers() {
       const cbs = document.querySelectorAll('input[name="splitMember"]');
-      // 除了「自己」外的其他成員狀態
       const others = Array.from(cbs).filter(cb => cb.value !== '自己');
       const anyOtherUnchecked = others.some(cb => !cb.checked);
       others.forEach(cb => cb.checked = anyOtherUnchecked);
       updateCalcPreview();
     }
 
-    // ========== 匯率通用查詢函式 (支援歷史特定日期) ==========
-async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
-  const dateVal = document.getElementById(dateInputId).value || new Date().toISOString().split('T')[0];
-  const badge = document.getElementById(badgeId);
-  const rateTitle = document.getElementById('rateTitleLabel');
+    // 匯率查詢 (支援動態傳入標題 ID)
+    async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId, titleId = 'rateTitleLabel') {
+      const dateVal = document.getElementById(dateInputId).value || new Date().toISOString().split('T')[0];
+      const badge = document.getElementById(badgeId);
+      const rateTitle = document.getElementById(titleId);
 
-  if (badge) {
-    badge.innerText = '查詢中...';
-    badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
-  }
-
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/CNY');
-    const data = await res.json();
-
-    if (data && data.rates && data.rates.TWD) {
-      const liveRate = parseFloat(data.rates.TWD.toFixed(4));
-      
-      // 1. 填入下方輸入框
-      document.getElementById(rateInputId).value = liveRate;
-
-      // 2. 直接把標題上的「?」換成真正的匯率數字！
-      if (rateTitle) {
-        rateTitle.innerText = `該日匯率 (1 CNY = ${liveRate} TWD)`;
-      }
-
-      // 3. 狀態標籤也清楚寫出抓到的匯率
       if (badge) {
-        badge.innerText = `已取得：${liveRate}`;
-        badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold';
+        badge.innerText = '查詢中...';
+        badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
       }
+
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/CNY');
+        const data = await res.json();
+        if (data && data.rates && data.rates.TWD) {
+          const liveRate = parseFloat(data.rates.TWD.toFixed(4));
+          document.getElementById(rateInputId).value = liveRate;
+
+          if (rateTitle) {
+            rateTitle.innerText = `該日匯率 (1 CNY = ${liveRate} TWD)`;
+          }
+
+          if (badge) {
+            badge.innerText = `已取得：${liveRate}`;
+            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
+          }
+        }
+      } catch (err) {
+        if (badge) {
+          badge.innerText = '使用預設值';
+          badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
+        }
+      }
+      updateCalcPreview();
     }
-  } catch (err) {
-    if (badge) {
-      badge.innerText = '使用預設值';
-      badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded';
-    }
-  }
-  updateCalcPreview();
-}
 
     function onDateChange() {
       const currency = document.getElementById('currencySelect').value;
       if (currency === 'CNY') {
-        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge');
+        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge', 'rateTitleLabel');
       }
     }
 
@@ -867,14 +860,13 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       const box = document.getElementById('cnyConfigBox');
       if (currency === 'CNY') {
         box.classList.remove('hidden');
-        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge');
+        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge', 'rateTitleLabel');
       } else {
         box.classList.add('hidden');
         updateCalcPreview();
       }
     }
 
-    // 計算預覽：總額依所有人均分，每人應還金額為單人份額
     function updateCalcPreview() {
       const currency = document.getElementById('currencySelect').value;
       const rawAmount = parseFloat(document.getElementById('recordAmount').value) || 0;
@@ -945,7 +937,7 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
         totalTWD,
         perPersonTWD,
         note: note || category,
-        members: checkedMembers // 包含 '自己' 或 其他人
+        members: checkedMembers
       };
 
       state.records.push(newRecord);
@@ -962,8 +954,6 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       switchTab(2);
     }
 
-    // ========== TAB 2: 臨時快速新增 (含幣別與匯率) ==========
-
     function toggleQuickAddForm() {
       const box = document.getElementById('quickAddBox');
       const isHidden = box.classList.contains('hidden');
@@ -977,7 +967,7 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
 
     function onQuickDateChange() {
       if (document.getElementById('quickCurrency').value === 'CNY') {
-        fetchExchangeRateForInput('quickDate', 'quickCnyRate', null);
+        fetchExchangeRateForInput('quickDate', 'quickCnyRate', 'quickRateStatus');
       }
     }
 
@@ -986,7 +976,7 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       const box = document.getElementById('quickCnyBox');
       if (curr === 'CNY') {
         box.classList.remove('hidden');
-        fetchExchangeRateForInput('quickDate', 'quickCnyRate', null);
+        fetchExchangeRateForInput('quickDate', 'quickCnyRate', 'quickRateStatus');
       } else {
         box.classList.add('hidden');
       }
@@ -1053,8 +1043,6 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       alert('已快速新增並同步！');
     }
 
-    // ========== TAB 2: 總覽渲染 (排除「自己」) ==========
-
     function renderDebtsTab() {
       const container = document.getElementById('membersDebtList');
       let grandTotal = 0;
@@ -1062,14 +1050,12 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       const activeDebtorSet = new Set();
       state.records.forEach(r => {
         r.members.forEach(m => {
-          // 排除「自己」，只統計真正欠你錢的人
           if (m !== '自己') {
             activeDebtorSet.add(m);
           }
         });
       });
 
-      // 總覽名單完全排除「自己」
       const allDisplayMembers = Array.from(new Set([...state.members, ...activeDebtorSet])).filter(m => m !== '自己');
 
       const memberDebts = {};
@@ -1165,8 +1151,6 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       container.innerHTML = cardsHtml;
     }
 
-    // ========== 編輯 Modal ==========
-
     function openEditModal(recordId) {
       const record = state.records.find(r => r.id === recordId);
       if (!record) return alert('找不到該筆紀錄！');
@@ -1183,7 +1167,6 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       const catSelect = document.getElementById('editCategory');
       catSelect.innerHTML = state.categories.map(c => `<option value="${c}" ${c === record.category ? 'selected' : ''}>${c}</option>`).join('');
 
-      // 人員勾選池 (包含自己)
       const memberPool = Array.from(new Set(['自己', ...state.members, ...record.members]));
       const memberContainer = document.getElementById('editMembersCheckboxes');
       memberContainer.innerHTML = memberPool.map(m => `
@@ -1200,7 +1183,7 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
 
     function onEditDateChange() {
       if (document.getElementById('editCurrency').value === 'CNY') {
-        fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge');
+        fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge', 'editRateTitleLabel');
       }
     }
 
@@ -1298,8 +1281,6 @@ async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId) {
       renderDebtsTab();
       alert('已儲存更新並同步！');
     }
-
-    // ========== 結清邏輯 ==========
 
     function settleAllMemberDebts(member) {
       if (!confirm(`確定要將【${member}】的所有欠款全部結清清除嗎？`)) return;
