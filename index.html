@@ -8,6 +8,51 @@
   <meta name="apple-mobile-web-app-title" content="欠款記帳" />
   <title>欠款記帳管理系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK 模組 (已填入你的專屬設定) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAl-PY9lk41YGbq4HJIVElYJqiNdpPr2g",
+      authDomain: "money-7c81c.firebaseapp.com",
+      databaseURL: "https://money-7c81c-default-rtdb.firebaseio.com",
+      projectId: "money-7c81c",
+      storageBucket: "money-7c81c.firebasestorage.app",
+      messagingSenderId: "250032270278",
+      appId: "1:250032270278:web:3275df2ed0a8e8a022a0c7",
+      measurementId: "G-WKJ00E5ZF4"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'debt_app_data');
+
+    // 暴露給全局 JavaScript 使用
+    window.cloudDB = {
+      subscribe: (callback) => {
+        onValue(dbRef, (snapshot) => {
+          const data = snapshot.val();
+          callback(data);
+        }, (error) => {
+          console.error("Firebase 連線錯誤:", error);
+          const badge = document.getElementById('syncStatus');
+          if (badge) {
+            badge.innerText = '連線失敗(請檢查權限)';
+            badge.className = 'text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-medium';
+          }
+        });
+      },
+      saveData: (data) => {
+        return set(dbRef, data);
+      }
+    };
+
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
   <style>
     body {
       -webkit-tap-highlight-color: transparent;
@@ -47,7 +92,10 @@
     <!-- 頂部資訊 -->
     <header class="flex justify-between items-center bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200">
       <div>
-        <h1 class="text-base font-bold text-slate-800">誰欠我錢記帳簿</h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-bold text-slate-800">誰欠我錢記帳簿</h1>
+          <span id="syncStatus" class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">雲端即時同步</span>
+        </div>
         <p class="text-[11px] text-slate-500">使用者：jimmyeyes</p>
       </div>
       <button onclick="handleLogout()" class="text-xs text-slate-400 hover:text-rose-500">登出</button>
@@ -231,6 +279,46 @@
 
     let activePartialMember = null;
 
+    // 將資料同步到 Firebase 雲端與本地端
+    function syncToStorage() {
+      localStorage.setItem('app_categories', JSON.stringify(state.categories));
+      localStorage.setItem('app_members', JSON.stringify(state.members));
+      localStorage.setItem('app_records', JSON.stringify(state.records));
+
+      if (window.cloudDB && window.cloudDB.saveData) {
+        window.cloudDB.saveData({
+          categories: state.categories,
+          members: state.members,
+          records: state.records,
+          updatedAt: Date.now()
+        });
+      }
+    }
+
+    // 監聽 Firebase 雲端資料同步更新（手機、電腦即時同步）
+    window.addEventListener('firebase-ready', () => {
+      if (window.cloudDB) {
+        window.cloudDB.subscribe((cloudData) => {
+          if (cloudData) {
+            state.categories = cloudData.categories || DEFAULT_CATEGORIES;
+            state.members = cloudData.members || [];
+            state.records = cloudData.records || [];
+
+            localStorage.setItem('app_categories', JSON.stringify(state.categories));
+            localStorage.setItem('app_members', JSON.stringify(state.members));
+            localStorage.setItem('app_records', JSON.stringify(state.records));
+
+            if (state.isLoggedIn) {
+              renderCategories();
+              renderMemberCheckboxes();
+              updateCalcPreview();
+              renderDebtsTab();
+            }
+          }
+        });
+      }
+    });
+
     function init() {
       if (state.isLoggedIn) {
         document.getElementById('loginView').classList.add('hidden');
@@ -243,7 +331,6 @@
       } else {
         document.getElementById('loginView').classList.remove('hidden');
         document.getElementById('mainApp').classList.add('hidden');
-        // 預設填入帳號並聚焦密碼框
         document.getElementById('loginUser').value = 'jimmyeyes';
         setTimeout(() => {
           document.getElementById('loginPass').focus();
@@ -340,7 +427,7 @@
       if (name && !state.categories.includes(name)) {
         state.categories.push(name);
         state.selectedCategory = name;
-        localStorage.setItem('app_categories', JSON.stringify(state.categories));
+        syncToStorage();
         input.value = '';
         renderCategories();
       }
@@ -352,7 +439,7 @@
       if (state.selectedCategory === cat) {
         state.selectedCategory = DEFAULT_CATEGORIES[0];
       }
-      localStorage.setItem('app_categories', JSON.stringify(state.categories));
+      syncToStorage();
       renderCategories();
     }
 
@@ -394,7 +481,7 @@
         currentChecked.push(name);
 
         state.members.push(name);
-        localStorage.setItem('app_members', JSON.stringify(state.members));
+        syncToStorage();
         input.value = '';
 
         renderMemberCheckboxes(currentChecked);
@@ -408,7 +495,7 @@
                                   .filter(m => m !== name);
 
       state.members = state.members.filter(m => m !== name);
-      localStorage.setItem('app_members', JSON.stringify(state.members));
+      syncToStorage();
 
       renderMemberCheckboxes(currentChecked);
       updateCalcPreview();
@@ -524,7 +611,7 @@
       };
 
       state.records.push(newRecord);
-      localStorage.setItem('app_records', JSON.stringify(state.records));
+      syncToStorage();
 
       document.getElementById('recordAmount').value = '';
       document.getElementById('recordNote').value = '';
@@ -533,7 +620,7 @@
       }
       updateCalcPreview();
 
-      alert('紀錄已儲存！');
+      alert('紀錄已儲存並同步至雲端！');
       switchTab(2);
     }
 
@@ -645,7 +732,7 @@
       });
       state.records = state.records.filter(r => r.members.length > 0);
 
-      localStorage.setItem('app_records', JSON.stringify(state.records));
+      syncToStorage();
       renderDebtsTab();
       alert(`已將【${member}】的所有帳目結清！`);
     }
@@ -706,11 +793,11 @@
       });
 
       state.records = state.records.filter(r => r.members.length > 0);
-      localStorage.setItem('app_records', JSON.stringify(state.records));
+      syncToStorage();
 
       closePartialModal();
       renderDebtsTab();
-      alert('已成功清除已還款細項並儲存！');
+      alert('已成功清除已還款細項並同步！');
     }
 
     window.onload = init;
