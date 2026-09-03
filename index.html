@@ -208,7 +208,6 @@
   <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
     <!-- 頂部資訊 (優化雙行排版) -->
     <header class="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200 space-y-2">
-      <!-- 第一行：標題 + 即時同步狀態 + 登出 -->
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
           <h1 class="text-base font-bold text-slate-800 tracking-tight">欠款記帳</h1>
@@ -220,7 +219,6 @@
         <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-500 whitespace-nowrap px-1">登出</button>
       </div>
 
-      <!-- 第二行：當前帳號 + 功能快捷按鈕 -->
       <div class="flex justify-between items-center pt-1.5 border-t border-slate-100">
         <p class="text-[11px] text-slate-400">帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600 font-mono">--</span></p>
         <div class="flex items-center gap-1.5">
@@ -285,24 +283,39 @@
           </div>
         </div>
 
-        <!-- 外幣匯率與手續費區塊 -->
-        <div id="foreignRateBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div class="text-xs font-bold text-amber-900" id="rateTitleLabel">該日匯率 (1 外幣 = ? TWD)</div>
-            <div class="flex items-center gap-1.5 self-start sm:self-auto">
+        <!-- 外幣匯率與手續費區塊 (徹底解決排版重疊，加入現金/信用卡切換) -->
+        <div id="foreignRateBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-3">
+          <!-- 頂部資訊列：支援彈性換行防止手機重疊 -->
+          <div class="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 pb-2">
+            <div class="text-xs font-bold text-amber-950 truncate max-w-full" id="rateTitleLabel">外幣匯率 (折合新台幣)</div>
+            <div class="flex items-center gap-1.5 flex-wrap">
               <span id="rateStatusBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">查詢中</span>
-              <button type="button" onclick="fetchLiveExchangeRateForCurrent()" class="text-[11px] text-amber-700 underline active:text-amber-900 whitespace-nowrap">🔄 重新抓取</button>
+              <button type="button" onclick="fetchLiveExchangeRateForCurrent()" class="text-[11px] text-amber-800 underline active:text-amber-950 whitespace-nowrap">🔄 重新抓取</button>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-medium text-amber-800 mb-1">牌告匯率 (折算台幣)</label>
+          <!-- 支付方式切換 (現金 vs 信用卡) -->
+          <div>
+            <label class="block text-[10px] font-medium text-amber-900 mb-1.5">支付方式 (手續費模式)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="payTypeCashBtn" onclick="setPaymentType('cash')" class="py-1.5 text-xs font-bold rounded-lg border border-amber-300 bg-white text-slate-700 shadow-sm transition">
+                💵 現金 (免卡費)
+              </button>
+              <button type="button" id="payTypeCardBtn" onclick="setPaymentType('card')" class="py-1.5 text-xs font-bold rounded-lg border border-amber-400 bg-amber-500 text-white shadow-sm transition">
+                💳 信用卡
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div id="rateInputCol" class="col-span-2">
+              <label class="block text-[10px] font-medium text-amber-800 mb-1">牌告匯率 (可手動校準)</label>
               <input id="foreignRate" type="number" step="0.0001" value="1.0" oninput="updateCalcPreview()" 
                      class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500">
             </div>
-            <div>
-              <label class="block text-[10px] font-medium text-amber-800 mb-1">信用卡海外手續費 (%)</label>
+            <!-- 僅在選擇信用卡時顯示 -->
+            <div id="cardFeeInputCol" class="col-span-1 hidden">
+              <label class="block text-[10px] font-medium text-amber-800 mb-1">海外交易手續費 (%)</label>
               <div class="relative">
                 <input id="cardFeeRate" type="number" step="0.1" value="1.5" placeholder="1.5" oninput="updateCalcPreview()" 
                        class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 pr-6">
@@ -314,7 +327,7 @@
 
         <div id="locationField" class="hidden">
           <label class="block text-xs font-medium text-slate-500 mb-1">地點</label>
-          <input id="recordLocation" type="text" placeholder="例如：花蓮、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <input id="recordLocation" type="text" placeholder="例如：花蓮、迪士尼、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
 
         <div>
@@ -381,17 +394,29 @@
             <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
           </div>
 
-          <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
-            <div class="flex justify-between items-center text-[10px] text-amber-900">
+          <!-- 臨時外幣匯率與付款方式 -->
+          <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-2">
+            <div class="flex flex-wrap justify-between items-center gap-1 text-[10px] text-amber-900">
               <span class="font-bold" id="quickRateLabel">匯率設定</span>
               <span id="quickRateStatus" class="font-semibold text-emerald-700">自動抓取</span>
             </div>
+
+            <!-- 現金/卡費切換 -->
+            <div class="grid grid-cols-2 gap-1.5">
+              <button type="button" id="quickPayCashBtn" onclick="setQuickPaymentType('cash')" class="py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700">
+                💵 現金
+              </button>
+              <button type="button" id="quickPayCardBtn" onclick="setQuickPaymentType('card')" class="py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white">
+                💳 信用卡
+              </button>
+            </div>
+
             <div class="grid grid-cols-2 gap-2">
-              <div>
+              <div id="quickRateCol" class="col-span-2">
                 <label class="block text-[10px] text-amber-800">牌告匯率</label>
                 <input id="quickForeignRate" type="number" step="0.0001" value="1.0" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
               </div>
-              <div>
+              <div id="quickCardFeeCol" class="col-span-1 hidden">
                 <label class="block text-[10px] text-amber-800">信用卡 %</label>
                 <input id="quickCardFee" type="number" step="0.1" value="1.5" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
               </div>
@@ -424,11 +449,11 @@
           <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.02</span>
         </div>
         <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+          <li><strong>現金/信用卡自由切換</strong>：外幣支援擇一選擇現金（0%卡費）或信用卡（手續費微調）。</li>
           <li><strong>常用幣別自訂</strong>：支援全球 20 種主要貨幣，預設為台幣、人民幣、日圓，可自由增刪。</li>
           <li><strong>多人分攤計算</strong>：支援「分攤（自己參與均分）」與「一般代墊（自己不參與）」雙模式。</li>
-          <li><strong>即時匯率換算</strong>：外幣即時牌告匯率自動抓取，並支援自訂信用卡海外手續費 %。</li>
+          <li><strong>即時匯率換算</strong>：外幣即時牌告匯率自動抓取。</li>
           <li><strong>Firebase 即時同步</strong>：跨手機與電腦秒級雙向同步，支援多用戶資料完全隔離。</li>
-          <li><strong>彈性結算機制</strong>：支援全數結清與自選項目「部分結清」，可隨時校正細項。</li>
         </ul>
       </div>
 
@@ -509,17 +534,28 @@
           </div>
         </div>
 
+        <!-- 編輯視窗外幣設定 -->
         <div id="editForeignBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-wrap justify-between items-center gap-1">
             <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">外幣設定</span>
-            <span id="editRateStatusBadge" class="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-semibold self-start sm:self-auto">連線可查</span>
+            <span id="editRateStatusBadge" class="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-semibold whitespace-nowrap">連線可查</span>
           </div>
+
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" id="editPayCashBtn" onclick="setEditPaymentType('cash')" class="py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700">
+              💵 現金
+            </button>
+            <button type="button" id="editPayCardBtn" onclick="setEditPaymentType('card')" class="py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white">
+              💳 信用卡
+            </button>
+          </div>
+
           <div class="grid grid-cols-2 gap-2">
-            <div>
+            <div id="editRateCol" class="col-span-2">
               <label class="block text-[10px] text-amber-800">牌告匯率</label>
               <input id="editForeignRate" type="number" step="0.0001" oninput="updateEditPreview()" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
             </div>
-            <div>
+            <div id="editCardFeeCol" class="col-span-1 hidden">
               <label class="block text-[10px] text-amber-800">信用卡手續費 %</label>
               <input id="editCardFee" type="number" step="0.1" oninput="updateEditPreview()" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
             </div>
@@ -635,10 +671,10 @@
         date: "2026-09-03",
         title: "新增多幣別管理與常用 20 國幣別支援",
         notes: [
+          "新增外幣支付模式選擇：支援「現金（0%卡費）」與「信用卡（彈性微調手續費）」雙選模式。",
+          "優化手機端匯率資訊排版，徹底解決小螢幕按鈕與標籤重疊問題。",
           "新增常用幣別設定功能：支援全球最常用的 20 種貨幣，預設為台幣 (TWD)、人民幣 (CNY)、日圓 (JPY)。",
-          "自訂幣別選單彈窗：可隨時增減下拉選單所顯示的貨幣，設定自動同步至雲端。",
-          "通用外幣即時匯率引擎：切換任意外幣（日幣、美金、歐元等）均可自動抓取兌台幣最新牌告匯率。",
-          "多帳號資料完全隔離與安全性優化。"
+          "自訂幣別選單彈窗：可隨時增減下拉選單所顯示的貨幣，設定自動同步至雲端。"
         ]
       },
       {
@@ -649,7 +685,6 @@
           "修正多帳號資料隔離問題，新註冊用戶擁有獨立純淨資料庫。",
           "隱藏所有介面預設帳號名稱提示，保護使用者隱私。",
           "新增「系統與更新」分頁，支援版本歷程自動化顯示。",
-          "匯率設定區塊適應行動端螢幕，解決小螢幕按鈕重疊擠壓問題。",
           "連動「分攤」與「一般代墊」邏輯：分攤預設包含自己，一般代墊自動隱藏自己。"
         ]
       },
@@ -679,11 +714,79 @@
       currencies: JSON.parse(localStorage.getItem('app_user_currencies')) || DEFAULT_USER_CURRENCIES
     };
 
+    // 模式狀態：'card' 或 'cash'
+    let currentPaymentType = 'card';
+    let quickPaymentType = 'card';
+    let editPaymentType = 'card';
+
     state.categories = state.categories.map(c => c === '出遊分攤' ? '分攤' : c);
     if (!state.categories.includes('分攤')) state.categories.unshift('分攤');
 
     let pendingGoogleUser = null;
     let activePartialMember = null;
+
+    // ========== 現金 / 信用卡切換函數 ==========
+    function setPaymentType(type) {
+      currentPaymentType = type;
+      const cashBtn = document.getElementById('payTypeCashBtn');
+      const cardBtn = document.getElementById('payTypeCardBtn');
+      const rateCol = document.getElementById('rateInputCol');
+      const feeCol = document.getElementById('cardFeeInputCol');
+
+      if (type === 'cash') {
+        cashBtn.className = 'py-1.5 text-xs font-bold rounded-lg border border-amber-400 bg-amber-500 text-white shadow-sm transition';
+        cardBtn.className = 'py-1.5 text-xs font-bold rounded-lg border border-amber-300 bg-white text-slate-700 shadow-sm transition';
+        rateCol.className = 'col-span-2';
+        feeCol.classList.add('hidden');
+      } else {
+        cardBtn.className = 'py-1.5 text-xs font-bold rounded-lg border border-amber-400 bg-amber-500 text-white shadow-sm transition';
+        cashBtn.className = 'py-1.5 text-xs font-bold rounded-lg border border-amber-300 bg-white text-slate-700 shadow-sm transition';
+        rateCol.className = 'col-span-1';
+        feeCol.classList.remove('hidden');
+      }
+      updateCalcPreview();
+    }
+
+    function setQuickPaymentType(type) {
+      quickPaymentType = type;
+      const cashBtn = document.getElementById('quickPayCashBtn');
+      const cardBtn = document.getElementById('quickPayCardBtn');
+      const rateCol = document.getElementById('quickRateCol');
+      const feeCol = document.getElementById('quickCardFeeCol');
+
+      if (type === 'cash') {
+        cashBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white';
+        cardBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700';
+        rateCol.className = 'col-span-2';
+        feeCol.classList.add('hidden');
+      } else {
+        cardBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white';
+        cashBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700';
+        rateCol.className = 'col-span-1';
+        feeCol.classList.remove('hidden');
+      }
+    }
+
+    function setEditPaymentType(type) {
+      editPaymentType = type;
+      const cashBtn = document.getElementById('editPayCashBtn');
+      const cardBtn = document.getElementById('editPayCardBtn');
+      const rateCol = document.getElementById('editRateCol');
+      const feeCol = document.getElementById('editCardFeeCol');
+
+      if (type === 'cash') {
+        cashBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white';
+        cardBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700';
+        rateCol.className = 'col-span-2';
+        feeCol.classList.add('hidden');
+      } else {
+        cardBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-400 bg-amber-500 text-white';
+        cashBtn.className = 'py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700';
+        rateCol.className = 'col-span-1';
+        feeCol.classList.remove('hidden');
+      }
+      updateEditPreview();
+    }
 
     function renderChangelogTab() {
       document.getElementById('tabCurrentVersionBadge').innerText = CURRENT_VERSION;
@@ -792,6 +895,9 @@
         document.getElementById('recordDate').value = today;
         document.getElementById('quickDate').value = today;
 
+        setPaymentType('card');
+        setQuickPaymentType('card');
+
         renderCurrencyDropdowns();
         renderCategories();
         renderMemberCheckboxes();
@@ -861,7 +967,7 @@
       alert('已更新常用幣別設定！');
     }
 
-    // ========== 匯率抓取核心 (支援 20 國幣別自動換算至 TWD) ==========
+    // ========== 匯率抓取核心 ==========
     async function fetchUniversalRate(baseCurrency, dateVal, targetInputId, badgeId, titleId) {
       if (baseCurrency === 'TWD') {
         document.getElementById(targetInputId).value = 1.0;
@@ -885,7 +991,7 @@
           document.getElementById(targetInputId).value = liveRate;
 
           if (title) {
-            title.innerText = `該日匯率 (1 ${baseCurrency} = ${liveRate} TWD)`;
+            title.innerText = `${baseCurrency} 匯率 (1 ${baseCurrency} = ${liveRate} TWD)`;
           }
           if (badge) {
             badge.innerText = `已取得：${liveRate}`;
@@ -1270,7 +1376,8 @@
 
       if (currency !== 'TWD') {
         const rate = parseFloat(document.getElementById('foreignRate').value) || 1.0;
-        const feePercent = parseFloat(document.getElementById('cardFeeRate').value) || 0;
+        // 現金模式手續費自動為 0
+        const feePercent = currentPaymentType === 'card' ? (parseFloat(document.getElementById('cardFeeRate').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + feePercent / 100));
       } else {
         totalTWD = Math.round(rawAmount);
@@ -1322,7 +1429,7 @@
 
       if (currency !== 'TWD') {
         rate = parseFloat(document.getElementById('foreignRate').value) || 1.0;
-        cardFee = parseFloat(document.getElementById('cardFeeRate').value) || 0;
+        cardFee = currentPaymentType === 'card' ? (parseFloat(document.getElementById('cardFeeRate').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
         totalTWD = Math.round(rawAmount);
@@ -1388,7 +1495,7 @@
       const dateVal = document.getElementById('quickDate').value;
       if (curr !== 'TWD') {
         box.classList.remove('hidden');
-        document.getElementById('quickRateLabel').innerText = `匯率 (1 ${curr} = ? TWD)`;
+        document.getElementById('quickRateLabel').innerText = `${curr} 匯率設定`;
         fetchUniversalRate(curr, dateVal, 'quickForeignRate', 'quickRateStatus', 'quickRateLabel');
       } else {
         box.classList.add('hidden');
@@ -1435,7 +1542,7 @@
 
       if (currency !== 'TWD') {
         rate = parseFloat(document.getElementById('quickForeignRate').value) || 1.0;
-        cardFee = parseFloat(document.getElementById('quickCardFee').value) || 0;
+        cardFee = quickPaymentType === 'card' ? (parseFloat(document.getElementById('quickCardFee').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
         totalTWD = Math.round(rawAmount);
@@ -1535,7 +1642,7 @@
               <span class="inline-block bg-slate-200 text-slate-700 px-1 rounded text-[10px] mr-1">${it.category}</span>
               <span class="font-medium text-slate-800">${it.note}</span>
               ${it.location ? `<span class="text-indigo-500 ml-1">@${it.location}</span>` : ''}
-              ${it.origCurrency !== 'TWD' ? `<span class="text-amber-600 ml-1">(${it.origAmount} ${it.origCurrency})</span>` : ''}
+              ${it.origCurrency !== 'TWD' ? `<span class="text-amber-600 ml-1">(${it.origAmount} ${it.origCurrency}${it.cardFee > 0 ? ` 含卡費${it.cardFee}%` : ' 現金'})</span>` : ''}
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold text-slate-800">NT$ ${it.amountTWD.toLocaleString()}</span>
@@ -1596,6 +1703,13 @@
 
       const catSelect = document.getElementById('editCategory');
       catSelect.innerHTML = state.categories.map(c => `<option value="${c}" ${c === record.category ? 'selected' : ''}>${c}</option>`).join('');
+
+      // 判斷原紀錄是現金還是信用卡
+      if (record.currency !== 'TWD' && (!record.cardFee || record.cardFee === 0)) {
+        setEditPaymentType('cash');
+      } else {
+        setEditPaymentType('card');
+      }
 
       renderEditMembers(record.category, record.members);
       onEditCurrencyChange();
@@ -1665,7 +1779,7 @@
 
       if (curr !== 'TWD') {
         const rate = parseFloat(document.getElementById('editForeignRate').value) || 1.0;
-        const fee = parseFloat(document.getElementById('editCardFee').value) || 0;
+        const fee = editPaymentType === 'card' ? (parseFloat(document.getElementById('editCardFee').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + fee / 100));
       } else {
         totalTWD = Math.round(rawAmount);
@@ -1705,7 +1819,7 @@
 
       if (currency !== 'TWD') {
         rate = parseFloat(document.getElementById('editForeignRate').value) || 1.0;
-        cardFee = parseFloat(document.getElementById('editCardFee').value) || 0;
+        cardFee = editPaymentType === 'card' ? (parseFloat(document.getElementById('editCardFee').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
         totalTWD = Math.round(rawAmount);
