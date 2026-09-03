@@ -78,7 +78,6 @@
           updatedAt: Date.now() 
         });
 
-        // 登錄到全域帳號目錄 (供管理員查看)
         const dirRef = ref(db, `user_directory/${customUser}`);
         await set(dirRef, {
           customUser,
@@ -89,14 +88,12 @@
         });
       },
 
-      // 管理員專用：讀取全體已註冊帳號
       getAllUsersDirectory: async () => {
         const dirRef = ref(db, 'user_directory');
         const snap = await get(dirRef);
         return snap.val() || {};
       },
 
-      // 管理員專用：刪除某帳號的所有關聯資料 (binding, credential, users/data, directory)
       deleteUserAccount: async (customUser, uid) => {
         if (customUser === 'jimmyeyes') {
           throw new Error('無法刪除主管理員帳號！');
@@ -122,7 +119,6 @@
         const userRef = ref(db, `user_credentials/${customUser}`);
         await set(userRef, { password, updatedAt: Date.now() });
 
-        // 自訂註冊也寫入目錄
         const dirRef = ref(db, `user_directory/${customUser}`);
         const snap = await get(dirRef);
         if (!snap.exists()) {
@@ -232,7 +228,6 @@
         <p class="text-[11px] text-slate-500">當前帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600">jimmyeyes</span></p>
       </div>
       <div class="flex items-center gap-2">
-        <!-- 只有主帳號 jimmyeyes 才會看見此管理按鈕 -->
         <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition">
           ⚙️ 帳號管理
         </button>
@@ -264,7 +259,7 @@
 
         <div class="pt-2 border-t border-slate-100">
           <div class="flex justify-between items-center mb-1.5">
-            <label class="block text-xs font-medium text-slate-500">選擇本次分攤成員（「自己」預設勾選）</label>
+            <label class="block text-xs font-medium text-slate-500" id="memberSectionTitle">選擇本次分攤成員</label>
             <button onclick="toggleAllMembers()" class="text-[11px] text-indigo-600">全選 / 取消其他人</button>
           </div>
           <div id="memberCheckboxes" class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-2"></div>
@@ -345,14 +340,14 @@
             <span class="font-bold text-sm text-indigo-700" id="previewTotalTWD">NT$ 0</span>
           </div>
           <div class="flex justify-between">
-            <span>總分攤人數 (含自己)：</span>
+            <span>總分攤人數：</span>
             <span id="previewMemberCount">0 人</span>
           </div>
           <div class="flex justify-between border-t border-indigo-200 pt-1 text-sm font-bold">
             <span>其他每人應給你：</span>
             <span class="text-rose-600" id="previewPerPersonTWD">NT$ 0</span>
           </div>
-          <div class="text-[11px] text-slate-500 text-right pt-0.5" id="previewSelfNote">自己吸收份額不列入欠款</div>
+          <div class="text-[11px] text-slate-500 text-right pt-0.5" id="previewSelfNote"></div>
         </div>
 
         <button onclick="saveRecord()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm active:bg-indigo-700 shadow-md">
@@ -385,13 +380,19 @@
           </div>
 
           <div class="grid grid-cols-2 gap-2">
-            <input id="quickDate" type="date" onchange="onQuickDateChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+            <select id="quickCategory" onchange="onQuickCategoryChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"></select>
             <select id="quickCurrency" onchange="onQuickCurrencyChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
               <option value="TWD">台幣 (TWD)</option>
               <option value="CNY">人民幣 (CNY)</option>
             </select>
           </div>
 
+          <div class="grid grid-cols-2 gap-2">
+            <input id="quickDate" type="date" onchange="onQuickDateChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+            <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+
+          <!-- 臨時人民幣匯率 -->
           <div id="quickCnyBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
             <div class="flex justify-between items-center text-[10px] text-amber-900">
               <span class="font-bold">匯率設定</span>
@@ -409,13 +410,12 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <input id="quickNote" type="text" placeholder="項目說明 (如: 宵夜代墊)" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <div>
+            <input id="quickNote" type="text" placeholder="項目說明 (如: 宵夜代墊)" class="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
           </div>
 
           <div>
-            <span class="block text-[11px] text-slate-500 mb-1">分攤人員（勾選欠款人，含自己）：</span>
+            <span class="block text-[11px] text-slate-500 mb-1" id="quickMemberLabel">分攤人員：</span>
             <div id="quickMemberCheckboxes" class="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs"></div>
           </div>
 
@@ -479,6 +479,7 @@
           </div>
         </div>
 
+        <!-- 人民幣匯率與手續費 -->
         <div id="editCnyBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
           <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">人民幣設定</span>
@@ -497,7 +498,7 @@
         </div>
 
         <div>
-          <label class="block font-medium text-slate-600 mb-1">分攤人員（修正勾選）：</label>
+          <label class="block font-medium text-slate-600 mb-1">分攤人員（勾選欠款人）：</label>
           <div id="editMembersCheckboxes" class="grid grid-cols-2 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200"></div>
         </div>
 
@@ -559,7 +560,6 @@
         此處列出所有曾註冊/綁定的使用者帳號及 Google 資訊。刪除該帳號將會同步清除該用戶的登入授權與專屬記帳資料庫。
       </div>
 
-      <!-- 帳號清單容器 -->
       <div id="adminUserList" class="space-y-2 overflow-y-auto flex-1 pr-1">
         <div class="text-center text-xs text-slate-400 py-4">載入成員名單中...</div>
       </div>
@@ -654,7 +654,6 @@
         document.getElementById('mainApp').classList.remove('hidden');
         document.getElementById('currentAccountBadge').innerText = state.currentUser;
         
-        // 只有主帳號 jimmyeyes 顯示帳號管理入口按鈕
         const adminBtn = document.getElementById('adminManageBtn');
         if (state.currentUser === 'jimmyeyes') {
           adminBtn.classList.remove('hidden');
@@ -746,7 +745,7 @@
       }
     }
 
-    // ========== 主帳號專屬：帳號管理彈窗邏輯 ==========
+    // 帳號管理彈窗
     async function openAdminModal() {
       if (state.currentUser !== 'jimmyeyes') return;
       document.getElementById('adminModal').classList.remove('hidden');
@@ -819,7 +818,6 @@
       }
     }
 
-    // ========== 分頁切換 ==========
     function switchTab(tabIndex) {
       const tab1 = document.getElementById('tabContent1');
       const tab2 = document.getElementById('tabContent2');
@@ -870,9 +868,12 @@
       }
     }
 
+    // 切換屬性：若是分攤則讓「自己」預設勾選；若是其他（如一般代墊）則自己消失
     function selectCategory(cat) {
       state.selectedCategory = cat;
       renderCategories();
+      renderMemberCheckboxes();
+      updateCalcPreview();
     }
 
     function addCategory() {
@@ -884,6 +885,8 @@
         syncToStorage();
         input.value = '';
         renderCategories();
+        renderMemberCheckboxes();
+        updateCalcPreview();
       }
     }
 
@@ -895,29 +898,49 @@
       }
       syncToStorage();
       renderCategories();
+      renderMemberCheckboxes();
+      updateCalcPreview();
     }
 
+    // 第一步：成員清單 (根據是否為「分攤」動態顯示「自己」)
     function renderMemberCheckboxes(preservedChecked = null) {
       const container = document.getElementById('memberCheckboxes');
+      const isSplit = state.selectedCategory === '分攤';
+
+      // 標題切換
+      const titleElem = document.getElementById('memberSectionTitle');
+      if (titleElem) {
+        titleElem.innerText = isSplit ? '選擇本次分攤成員（含自己）' : '選擇欠款人員（由其全額支付）';
+      }
 
       let checkedSet;
       if (preservedChecked !== null) {
         checkedSet = new Set(preservedChecked);
       } else {
         const currentlyChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
-        checkedSet = currentlyChecked.length > 0 ? new Set(currentlyChecked) : new Set(['自己', ...state.members]);
+        if (currentlyChecked.length > 0) {
+          checkedSet = new Set(currentlyChecked);
+        } else {
+          // 預設情況：若為分攤，自己打勾，其他人也預設打勾
+          checkedSet = isSplit ? new Set(['自己', ...state.members]) : new Set(state.members);
+        }
       }
 
-      const selfChecked = checkedSet.has('自己');
-      let html = `
-        <div class="flex items-center justify-between bg-indigo-50 border border-indigo-200 px-2 py-1.5 rounded-lg">
-          <label class="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-900 cursor-pointer flex-1">
-            <input type="checkbox" name="splitMember" value="自己" ${selfChecked ? 'checked' : ''} onchange="updateCalcPreview()" 
-                   class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
-            <span>🙋 自己 (預設參與)</span>
-          </label>
-        </div>
-      `;
+      let html = '';
+
+      // 只有在「分攤」時，才顯示「🙋 自己」並預設參與
+      if (isSplit) {
+        const selfChecked = checkedSet.has('自己');
+        html += `
+          <div class="flex items-center justify-between bg-indigo-50 border border-indigo-200 px-2 py-1.5 rounded-lg">
+            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-900 cursor-pointer flex-1">
+              <input type="checkbox" name="splitMember" value="自己" ${selfChecked ? 'checked' : ''} onchange="updateCalcPreview()" 
+                     class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+              <span>🙋 自己 (預設參與)</span>
+            </label>
+          </div>
+        `;
+      }
 
       html += state.members.map(m => {
         const isChecked = checkedSet.has(m);
@@ -1052,12 +1075,18 @@
       document.getElementById('previewMemberCount').innerText = `${totalSplitCount} 人`;
       document.getElementById('previewPerPersonTWD').innerText = `NT$ ${perPersonTWD.toLocaleString()}`;
 
-      const hasSelf = checkedMembers.includes('自己');
+      const isSplit = state.selectedCategory === '分攤';
+      const hasSelf = isSplit && checkedMembers.includes('自己');
       const noteElem = document.getElementById('previewSelfNote');
-      if (hasSelf) {
-        noteElem.innerText = `含自己，自己吸收 NT$ ${perPersonTWD.toLocaleString()}，其他人各欠 NT$ ${perPersonTWD.toLocaleString()}`;
+
+      if (isSplit) {
+        if (hasSelf) {
+          noteElem.innerText = `含自己分攤：自己吸收 NT$ ${perPersonTWD.toLocaleString()}，其他人各欠 NT$ ${perPersonTWD.toLocaleString()}`;
+        } else {
+          noteElem.innerText = `不含自己：全額由選中的 ${totalSplitCount} 人均攤，每人欠 NT$ ${perPersonTWD.toLocaleString()}`;
+        }
       } else {
-        noteElem.innerText = `不含自己，全部金額由選中的 ${totalSplitCount} 人均攤`;
+        noteElem.innerText = `一般代墊：自己不參與，由選中的 ${totalSplitCount} 人全額分攤`;
       }
     }
 
@@ -1069,7 +1098,11 @@
       const rawAmount = parseFloat(document.getElementById('recordAmount').value);
       const note = document.getElementById('recordNote').value.trim();
 
-      const checkedMembers = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
+      // 一般代墊強制過濾掉「自己」
+      let checkedMembers = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
+      if (category !== '分攤') {
+        checkedMembers = checkedMembers.filter(m => m !== '自己');
+      }
 
       if (!rawAmount || rawAmount <= 0) return alert('請輸入有效金額！');
       if (checkedMembers.length === 0) return alert('請至少勾選一位分攤人員！');
@@ -1118,15 +1151,23 @@
       switchTab(2);
     }
 
+    // ========== TAB 2: 臨時快速新增 ==========
     function toggleQuickAddForm() {
       const box = document.getElementById('quickAddBox');
       const isHidden = box.classList.contains('hidden');
       if (isHidden) {
         box.classList.remove('hidden');
+        // 初始化分類選單
+        const catSelect = document.getElementById('quickCategory');
+        catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
         renderQuickMembers();
       } else {
         box.classList.add('hidden');
       }
+    }
+
+    function onQuickCategoryChange() {
+      renderQuickMembers();
     }
 
     function onQuickDateChange() {
@@ -1148,21 +1189,33 @@
 
     function renderQuickMembers() {
       const container = document.getElementById('quickMemberCheckboxes');
-      const allMembers = ['自己', ...state.members];
+      const cat = document.getElementById('quickCategory').value || '一般代墊';
+      const isSplit = cat === '分攤';
+
+      // 根據屬性決定名單是否包含「自己」
+      const allMembers = isSplit ? ['自己', ...state.members] : [...state.members];
+
+      document.getElementById('quickMemberLabel').innerText = isSplit ? '分攤人員（含自己）：' : '代墊人員（自己不參與）：';
+
       container.innerHTML = allMembers.map(m => `
         <label class="inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200">
           <input type="checkbox" name="quickMember" value="${m}" checked class="rounded text-indigo-600 focus:ring-indigo-500">
-          <span>${m === '自己' ? '🙋 自己' : m}</span>
+          <span class="${m === '自己' ? 'font-bold text-indigo-900' : ''}">${m === '自己' ? '🙋 自己' : m}</span>
         </label>
       `).join('');
     }
 
     function saveQuickRecord() {
+      const category = document.getElementById('quickCategory').value || '一般代墊';
       const note = document.getElementById('quickNote').value.trim();
       const rawAmount = parseFloat(document.getElementById('quickAmount').value);
       const currency = document.getElementById('quickCurrency').value;
       const date = document.getElementById('quickDate').value || new Date().toISOString().split('T')[0];
-      const checkedMembers = Array.from(document.querySelectorAll('input[name="quickMember"]:checked')).map(cb => cb.value);
+      
+      let checkedMembers = Array.from(document.querySelectorAll('input[name="quickMember"]:checked')).map(cb => cb.value);
+      if (category !== '分攤') {
+        checkedMembers = checkedMembers.filter(m => m !== '自己');
+      }
 
       if (!note) return alert('請輸入項目說明！');
       if (!rawAmount || rawAmount <= 0) return alert('請輸入有效金額！');
@@ -1185,7 +1238,7 @@
       const newRecord = {
         id: 'rec_' + Date.now(),
         date,
-        category: '一般代墊',
+        category,
         location: '',
         currency,
         rate,
@@ -1315,6 +1368,7 @@
       container.innerHTML = cardsHtml;
     }
 
+    // 編輯 Modal
     function openEditModal(recordId) {
       const record = state.records.find(r => r.id === recordId);
       if (!record) return alert('找不到該筆紀錄！');
@@ -1331,18 +1385,41 @@
       const catSelect = document.getElementById('editCategory');
       catSelect.innerHTML = state.categories.map(c => `<option value="${c}" ${c === record.category ? 'selected' : ''}>${c}</option>`).join('');
 
-      const memberPool = Array.from(new Set(['自己', ...state.members, ...record.members]));
-      const memberContainer = document.getElementById('editMembersCheckboxes');
-      memberContainer.innerHTML = memberPool.map(m => `
-        <label class="inline-flex items-center gap-1.5 text-xs ${m === '自己' ? 'font-bold text-indigo-900' : 'text-slate-700'}">
-          <input type="checkbox" name="editSplitMember" value="${m}" ${record.members.includes(m) ? 'checked' : ''} onchange="updateEditPreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
-          <span class="truncate">${m === '自己' ? '🙋 自己' : m}</span>
-        </label>
-      `).join('');
-
+      renderEditMembers(record.category, record.members);
       onEditCurrencyChange();
       updateEditPreview();
       document.getElementById('editRecordModal').classList.remove('hidden');
+    }
+
+    function renderEditMembers(currentCategory, recordMembers = []) {
+      const isSplit = currentCategory === '分攤';
+      let memberPool = Array.from(new Set([...state.members, ...recordMembers]));
+
+      if (isSplit) {
+        if (!memberPool.includes('自己')) memberPool.unshift('自己');
+      } else {
+        memberPool = memberPool.filter(m => m !== '自己');
+      }
+
+      const memberContainer = document.getElementById('editMembersCheckboxes');
+      memberContainer.innerHTML = memberPool.map(m => `
+        <label class="inline-flex items-center gap-1.5 text-xs ${m === '自己' ? 'font-bold text-indigo-900' : 'text-slate-700'}">
+          <input type="checkbox" name="editSplitMember" value="${m}" ${recordMembers.includes(m) || (m === '自己' && isSplit) ? 'checked' : ''} onchange="updateEditPreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
+          <span class="truncate">${m === '自己' ? '🙋 自己' : m}</span>
+        </label>
+      `).join('');
+    }
+
+    function onEditCategoryChange() {
+      const cat = document.getElementById('editCategory').value;
+      const locInput = document.getElementById('editLocation');
+      if (cat !== '分攤') {
+        locInput.value = '';
+      }
+      // 讀取當前打勾的人
+      const currentChecked = Array.from(document.querySelectorAll('input[name="editSplitMember"]:checked')).map(cb => cb.value);
+      renderEditMembers(cat, currentChecked);
+      updateEditPreview();
     }
 
     function onEditDateChange() {
@@ -1364,14 +1441,6 @@
         cnyBox.classList.add('hidden');
       }
       updateEditPreview();
-    }
-
-    function onEditCategoryChange() {
-      const cat = document.getElementById('editCategory').value;
-      const locInput = document.getElementById('editLocation');
-      if (cat !== '分攤') {
-        locInput.value = '';
-      }
     }
 
     function updateEditPreview() {
@@ -1405,7 +1474,11 @@
       const note = document.getElementById('editNote').value.trim();
       const currency = document.getElementById('editCurrency').value;
       const rawAmount = parseFloat(document.getElementById('editRawAmount').value);
-      const checkedMembers = Array.from(document.querySelectorAll('input[name="editSplitMember"]:checked')).map(cb => cb.value);
+      
+      let checkedMembers = Array.from(document.querySelectorAll('input[name="editSplitMember"]:checked')).map(cb => cb.value);
+      if (category !== '分攤') {
+        checkedMembers = checkedMembers.filter(m => m !== '自己');
+      }
 
       if (!note) return alert('請填寫備註或項目！');
       if (!rawAmount || rawAmount <= 0) return alert('金額必須大於0！');
