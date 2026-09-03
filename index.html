@@ -39,17 +39,6 @@
         if (unsubscribeListener) unsubscribeListener();
         activeDataRef = ref(db, `users/${username}/data`);
 
-        get(activeDataRef).then((snap) => {
-          if (!snap.exists() && username === 'jimmyeyes') {
-            const oldRootRef = ref(db, 'debt_app_data');
-            get(oldRootRef).then((oldSnap) => {
-              if (oldSnap.exists()) {
-                set(activeDataRef, oldSnap.val());
-              }
-            });
-          }
-        });
-
         unsubscribeListener = onValue(activeDataRef, (snapshot) => {
           callback(snapshot.val());
         }, (error) => {
@@ -149,9 +138,9 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
 
-  <!-- 登入介面 (未登入時顯示) -->
+  <!-- 登入介面 -->
   <div id="loginView" class="min-h-screen flex items-center justify-center p-4">
     <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-sm border border-slate-200 space-y-4">
       <div class="text-center">
@@ -159,7 +148,6 @@
         <p class="text-xs text-slate-500 mt-1">請選擇登入方式</p>
       </div>
 
-      <!-- Google 登入 -->
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-white border border-slate-300 py-2.5 rounded-xl font-semibold text-sm text-slate-700 shadow-sm active:bg-slate-50 transition">
         <svg class="w-4 h-4" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -178,7 +166,7 @@
 
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">自訂帳號</label>
-        <input id="loginUser" type="text" value="jimmyeyes"
+        <input id="loginUser" type="text" placeholder="請輸入帳號"
                autocapitalize="none" autocorrect="off" spellcheck="false"
                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700">
       </div>
@@ -198,16 +186,16 @@
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 space-y-4">
       <div class="text-center">
         <h2 class="text-base font-bold text-slate-800">首次 Google 綁定帳號</h2>
-        <p class="text-xs text-slate-500 mt-1">如要承接原有資料，請確認自訂帳號為 <span class="font-bold text-indigo-600">jimmyeyes</span></p>
+        <p class="text-xs text-slate-500 mt-1">請為您的 Google 帳號設定專屬帳號名稱與密碼</p>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">自訂帳號</label>
-        <input id="bindUsername" type="text" value="jimmyeyes" autocapitalize="none"
+        <label class="block text-xs font-medium text-slate-600 mb-1">自訂帳號名稱</label>
+        <input id="bindUsername" type="text" placeholder="輸入個人專屬代號 (英文/數字)" autocapitalize="none"
                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">設定專屬密碼</label>
-        <input id="bindPassword" type="password" value="22301989" placeholder="請自訂一組密碼"
+        <input id="bindPassword" type="password" placeholder="請自訂一組密碼"
                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <button onclick="confirmGoogleBinding()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm active:bg-indigo-700 shadow-md">
@@ -216,16 +204,15 @@
     </div>
   </div>
 
-  <!-- 主系統介面 (登入後顯示) -->
-  <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 pb-20">
-    <!-- 頂部資訊 -->
+  <!-- 主系統介面 -->
+  <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
     <header class="flex justify-between items-center bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200">
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-base font-bold text-slate-800">欠款記帳By JimmyWei</h1>
           <span id="syncStatus" class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">雲端即時同步</span>
         </div>
-        <p class="text-[11px] text-slate-500">當前帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600">jimmyeyes</span></p>
+        <p class="text-[11px] text-slate-500">當前帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600">--</span></p>
       </div>
       <div class="flex items-center gap-2">
         <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition">
@@ -235,16 +222,15 @@
       </div>
     </header>
 
-    <!-- 分頁切換 Tab -->
-    <div class="flex bg-slate-200 p-1 rounded-xl">
+    <!-- 3 個分頁 Tab -->
+    <div class="flex bg-slate-200 p-1 rounded-xl gap-1">
       <button id="tabBtn1" onclick="switchTab(1)" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white shadow-sm text-slate-800">記一筆欠款</button>
       <button id="tabBtn2" onclick="switchTab(2)" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-500">欠款總覽與結清</button>
+      <button id="tabBtn3" onclick="switchTab(3)" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-500">系統與更新</button>
     </div>
 
     <!-- TAB 1: 記錄支出流程 -->
     <div id="tabContent1" class="space-y-4">
-      
-      <!-- 第一步：選擇金錢屬性與人員 -->
       <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
         <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 1. 金錢屬性與人員</h2>
 
@@ -270,7 +256,6 @@
         </div>
       </section>
 
-      <!-- 第二步：支出金額與明細 -->
       <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
         <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 2. 支出金額與細項</h2>
         
@@ -288,7 +273,6 @@
           </div>
         </div>
 
-        <!-- 人民幣匯率區塊 -->
         <div id="cnyConfigBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
           <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div class="text-xs font-bold text-amber-900" id="rateTitleLabel">該日匯率 (1 CNY = ? TWD)</div>
@@ -317,7 +301,7 @@
 
         <div id="locationField" class="hidden">
           <label class="block text-xs font-medium text-slate-500 mb-1">地點</label>
-          <input id="recordLocation" type="text" placeholder="例如：花蓮、迪士尼、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <input id="recordLocation" type="text" placeholder="例如：花蓮、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
 
         <div>
@@ -331,7 +315,6 @@
         </div>
       </section>
 
-      <!-- 第三步：即時換算與儲存 -->
       <section class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl space-y-3">
         <h2 class="text-xs font-bold text-indigo-900 tracking-wider">結算預覽 (新台幣四捨五入)</h2>
         <div class="space-y-1 text-xs text-indigo-950">
@@ -354,13 +337,10 @@
           儲存這筆紀錄
         </button>
       </section>
-
     </div>
 
     <!-- TAB 2: 人員欠款細項、總額與結清管理 -->
     <div id="tabContent2" class="hidden space-y-4">
-      
-      <!-- 總額卡片與快速新增按鈕 -->
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
         <div class="flex justify-between items-center">
           <div>
@@ -372,7 +352,6 @@
           </button>
         </div>
 
-        <!-- 臨時新增快捷表單 -->
         <div id="quickAddBox" class="hidden pt-3 border-t border-slate-100 space-y-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-bold text-indigo-900">⚡ 臨時新增欠款</span>
@@ -392,7 +371,6 @@
             <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
           </div>
 
-          <!-- 臨時人民幣匯率 -->
           <div id="quickCnyBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
             <div class="flex justify-between items-center text-[10px] text-amber-900">
               <span class="font-bold">匯率設定</span>
@@ -425,10 +403,35 @@
         </div>
       </div>
 
-      <!-- 成員卡片列表 -->
       <div id="membersDebtList" class="space-y-3"></div>
     </div>
+
+    <!-- TAB 3: 系統功能與版本更新內容 (自動從 APP_CHANGELOG 渲染) -->
+    <div id="tabContent3" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span class="text-sm font-bold text-slate-800">核心功能概覽</span>
+          <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.01</span>
+        </div>
+        <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+          <li><strong>多人分攤計算</strong>：支援「分攤（自己參與均分）」與「一般代墊（自己不參與）」雙模式。</li>
+          <li><strong>即時匯率換算</strong>：台幣/人民幣即時牌告匯率自動抓取，並支援自訂信用卡海外手續費 %。</li>
+          <li><strong>Firebase 即時同步</strong>：跨手機與電腦秒級雙向同步，支援多用戶資料完全隔離。</li>
+          <li><strong>彈性結算機制</strong>：支援全數結清與自選項目「部分結清」，可隨時校正細項。</li>
+        </ul>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+        <span class="text-sm font-bold text-slate-800 block border-b border-slate-100 pb-2">版本歷程與更新日誌</span>
+        <div id="changelogContainer" class="space-y-3 text-xs"></div>
+      </div>
+    </div>
   </div>
+
+  <!-- 頁尾版本顯示 -->
+  <footer class="py-3 text-center text-[11px] text-slate-400">
+    <span id="footerVersionText">v1.01</span> • 欠款記帳By JimmyWei
+  </footer>
 
   <!-- 彈窗 1：編輯細項 Modal -->
   <div id="editRecordModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -479,7 +482,6 @@
           </div>
         </div>
 
-        <!-- 人民幣匯率與手續費 -->
         <div id="editCnyBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
           <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">人民幣設定</span>
@@ -551,7 +553,7 @@
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
         <div>
           <h3 class="font-bold text-slate-800 text-base">👑 系統帳號管理</h3>
-          <p class="text-[11px] text-slate-500">主帳號 jimmyeyes 專屬權限</p>
+          <p class="text-[11px] text-slate-500">主管理員專屬權限</p>
         </div>
         <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
       </div>
@@ -573,11 +575,39 @@
   </div>
 
   <script>
+    // ========== 版本控制與更新歷程 (後續直接在此陣列上方新增即可自動同步全站) ==========
+    const APP_CHANGELOG = [
+      {
+        version: "v1.01",
+        date: "2026-09-03",
+        title: "帳號架構獨立與介面體驗升級",
+        notes: [
+          "徹底修正多帳號資料隔離：新註冊/登入的帳號皆具備獨立資料庫，不再與其他用戶共用資料。",
+          "隱藏所有介面預設帳號名稱提示，保護使用者隱私。",
+          "新增「系統與更新」分頁，支援版本歷程自動化顯示。",
+          "匯率設定區塊適應行動端螢幕，解決小螢幕按鈕重疊擠壓問題。",
+          "連動「分攤」與「一般代墊」邏輯：分攤預設包含自己，一般代墊自動隱藏自己。"
+        ]
+      },
+      {
+        version: "v1.00",
+        date: "2026-08-30",
+        title: "首版核心系統發布",
+        notes: [
+          "提供出遊分攤與一般代墊核心記帳功能。",
+          "支援台幣與人民幣即時匯率自動抓取及信用卡海外手續費計算。",
+          "整合 Firebase 雲端即時雙向同步，電腦與手機免重整連動。",
+          "支援部分結清與細項再次編輯功能。"
+        ]
+      }
+    ];
+
+    const CURRENT_VERSION = APP_CHANGELOG[0].version;
     const DEFAULT_CATEGORIES = ['分攤', '一般代墊'];
 
     let state = {
       isLoggedIn: localStorage.getItem('app_auth') === 'true',
-      currentUser: localStorage.getItem('app_current_user') || 'jimmyeyes',
+      currentUser: localStorage.getItem('app_current_user') || '',
       categories: JSON.parse(localStorage.getItem('app_categories')) || DEFAULT_CATEGORIES,
       selectedCategory: '分攤',
       members: JSON.parse(localStorage.getItem('app_members')) || [],
@@ -590,7 +620,26 @@
     let pendingGoogleUser = null;
     let activePartialMember = null;
 
+    function renderChangelogTab() {
+      document.getElementById('tabCurrentVersionBadge').innerText = CURRENT_VERSION;
+      document.getElementById('footerVersionText').innerText = CURRENT_VERSION;
+
+      const container = document.getElementById('changelogContainer');
+      container.innerHTML = APP_CHANGELOG.map(item => `
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-xs">${item.version} - ${item.title}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${item.date}</span>
+          </div>
+          <ul class="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+            ${item.notes.map(n => `<li>${n}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
     function syncToStorage() {
+      if (!state.currentUser) return;
       localStorage.setItem('app_categories', JSON.stringify(state.categories));
       localStorage.setItem('app_members', JSON.stringify(state.members));
       localStorage.setItem('app_records', JSON.stringify(state.records));
@@ -606,6 +655,7 @@
     }
 
     function attachCloudSync(username) {
+      if (!username) return;
       if (window.cloudDB && window.cloudDB.switchUserNode) {
         window.cloudDB.switchUserNode(username, (cloudData) => {
           if (cloudData) {
@@ -615,17 +665,22 @@
               ...r,
               category: r.category === '出遊分攤' ? '分攤' : r.category
             }));
+          } else {
+            // 新使用者初始狀態：完全獨立且空白
+            state.categories = DEFAULT_CATEGORIES;
+            state.members = [];
+            state.records = [];
+          }
 
-            localStorage.setItem('app_categories', JSON.stringify(state.categories));
-            localStorage.setItem('app_members', JSON.stringify(state.members));
-            localStorage.setItem('app_records', JSON.stringify(state.records));
+          localStorage.setItem('app_categories', JSON.stringify(state.categories));
+          localStorage.setItem('app_members', JSON.stringify(state.members));
+          localStorage.setItem('app_records', JSON.stringify(state.records));
 
-            if (state.isLoggedIn) {
-              renderCategories();
-              renderMemberCheckboxes();
-              updateCalcPreview();
-              renderDebtsTab();
-            }
+          if (state.isLoggedIn) {
+            renderCategories();
+            renderMemberCheckboxes();
+            updateCalcPreview();
+            renderDebtsTab();
           }
         });
       }
@@ -643,17 +698,20 @@
         });
       }
 
-      if (state.isLoggedIn) {
+      if (state.isLoggedIn && state.currentUser) {
         attachCloudSync(state.currentUser);
       }
     });
 
     function init() {
-      if (state.isLoggedIn) {
+      renderChangelogTab();
+
+      if (state.isLoggedIn && state.currentUser) {
         document.getElementById('loginView').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
         document.getElementById('currentAccountBadge').innerText = state.currentUser;
         
+        // 僅主帳號顯示帳號管理
         const adminBtn = document.getElementById('adminManageBtn');
         if (state.currentUser === 'jimmyeyes') {
           adminBtn.classList.remove('hidden');
@@ -684,6 +742,8 @@
           loginSuccess(binding.customUser);
         } else {
           pendingGoogleUser = googleUser;
+          document.getElementById('bindUsername').value = '';
+          document.getElementById('bindPassword').value = '';
           document.getElementById('bindModal').classList.remove('hidden');
         }
       } catch (err) {
@@ -716,6 +776,10 @@
       const user = document.getElementById('loginUser').value.trim().toLowerCase();
       const pass = document.getElementById('loginPass').value.trim();
 
+      if (!user || !pass) {
+        return alert('請輸入帳號與密碼！');
+      }
+
       const isValid = await window.cloudDB.verifyCustomUser(user, pass);
       if (isValid) {
         document.getElementById('loginError').classList.add('hidden');
@@ -740,12 +804,13 @@
           await window.cloudAuth.logout();
         }
         localStorage.removeItem('app_auth');
+        localStorage.removeItem('app_current_user');
         state.isLoggedIn = false;
+        state.currentUser = '';
         init();
       }
     }
 
-    // 帳號管理彈窗
     async function openAdminModal() {
       if (state.currentUser !== 'jimmyeyes') return;
       document.getElementById('adminModal').classList.remove('hidden');
@@ -765,11 +830,7 @@
         const userKeys = Object.keys(usersMap);
 
         if (userKeys.length === 0) {
-          container.innerHTML = `
-            <div class="text-center text-xs text-slate-400 py-4">
-              目前除主帳號外，尚無其他成員註冊紀錄
-            </div>
-          `;
+          container.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">目前尚無其他註冊帳號</div>`;
           return;
         }
 
@@ -821,20 +882,25 @@
     function switchTab(tabIndex) {
       const tab1 = document.getElementById('tabContent1');
       const tab2 = document.getElementById('tabContent2');
+      const tab3 = document.getElementById('tabContent3');
       const btn1 = document.getElementById('tabBtn1');
       const btn2 = document.getElementById('tabBtn2');
+      const btn3 = document.getElementById('tabBtn3');
+
+      [tab1, tab2, tab3].forEach(t => t.classList.add('hidden'));
+      [btn1, btn2, btn3].forEach(b => b.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-500');
 
       if (tabIndex === 1) {
         tab1.classList.remove('hidden');
-        tab2.classList.add('hidden');
         btn1.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white shadow-sm text-slate-800';
-        btn2.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-500';
-      } else {
-        tab1.classList.add('hidden');
+      } else if (tabIndex === 2) {
         tab2.classList.remove('hidden');
         btn2.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white shadow-sm text-slate-800';
-        btn1.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-500';
         renderDebtsTab();
+      } else if (tabIndex === 3) {
+        tab3.classList.remove('hidden');
+        btn3.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white shadow-sm text-slate-800';
+        renderChangelogTab();
       }
     }
 
@@ -868,7 +934,6 @@
       }
     }
 
-    // 切換屬性：若是分攤則讓「自己」預設勾選；若是其他（如一般代墊）則自己消失
     function selectCategory(cat) {
       state.selectedCategory = cat;
       renderCategories();
@@ -902,12 +967,10 @@
       updateCalcPreview();
     }
 
-    // 第一步：成員清單 (根據是否為「分攤」動態顯示「自己」)
     function renderMemberCheckboxes(preservedChecked = null) {
       const container = document.getElementById('memberCheckboxes');
       const isSplit = state.selectedCategory === '分攤';
 
-      // 標題切換
       const titleElem = document.getElementById('memberSectionTitle');
       if (titleElem) {
         titleElem.innerText = isSplit ? '選擇本次分攤成員（含自己）' : '選擇欠款人員（由其全額支付）';
@@ -921,14 +984,12 @@
         if (currentlyChecked.length > 0) {
           checkedSet = new Set(currentlyChecked);
         } else {
-          // 預設情況：若為分攤，自己打勾，其他人也預設打勾
           checkedSet = isSplit ? new Set(['自己', ...state.members]) : new Set(state.members);
         }
       }
 
       let html = '';
 
-      // 只有在「分攤」時，才顯示「🙋 自己」並預設參與
       if (isSplit) {
         const selfChecked = checkedSet.has('自己');
         html += `
@@ -1098,7 +1159,6 @@
       const rawAmount = parseFloat(document.getElementById('recordAmount').value);
       const note = document.getElementById('recordNote').value.trim();
 
-      // 一般代墊強制過濾掉「自己」
       let checkedMembers = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
       if (category !== '分攤') {
         checkedMembers = checkedMembers.filter(m => m !== '自己');
@@ -1151,13 +1211,12 @@
       switchTab(2);
     }
 
-    // ========== TAB 2: 臨時快速新增 ==========
+    // ========== 臨時快速記一筆 ==========
     function toggleQuickAddForm() {
       const box = document.getElementById('quickAddBox');
       const isHidden = box.classList.contains('hidden');
       if (isHidden) {
         box.classList.remove('hidden');
-        // 初始化分類選單
         const catSelect = document.getElementById('quickCategory');
         catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
         renderQuickMembers();
@@ -1192,7 +1251,6 @@
       const cat = document.getElementById('quickCategory').value || '一般代墊';
       const isSplit = cat === '分攤';
 
-      // 根據屬性決定名單是否包含「自己」
       const allMembers = isSplit ? ['自己', ...state.members] : [...state.members];
 
       document.getElementById('quickMemberLabel').innerText = isSplit ? '分攤人員（含自己）：' : '代墊人員（自己不參與）：';
@@ -1368,7 +1426,7 @@
       container.innerHTML = cardsHtml;
     }
 
-    // 編輯 Modal
+    // ========== 編輯 Modal ==========
     function openEditModal(recordId) {
       const record = state.records.find(r => r.id === recordId);
       if (!record) return alert('找不到該筆紀錄！');
@@ -1416,7 +1474,6 @@
       if (cat !== '分攤') {
         locInput.value = '';
       }
-      // 讀取當前打勾的人
       const currentChecked = Array.from(document.querySelectorAll('input[name="editSplitMember"]:checked')).map(cb => cb.value);
       renderEditMembers(cat, currentChecked);
       updateEditPreview();
