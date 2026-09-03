@@ -214,11 +214,14 @@
         </div>
         <p class="text-[11px] text-slate-500">當前帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600">--</span></p>
       </div>
-      <div class="flex items-center gap-2">
-        <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition">
-          ⚙️ 帳號管理
+      <div class="flex items-center gap-1.5">
+        <button onclick="openCurrencyModal()" title="幣別自訂管理" class="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2 py-1 rounded-lg font-bold hover:bg-slate-200 active:scale-95 transition">
+          ⚙️ 幣別
         </button>
-        <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-500">登出</button>
+        <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition">
+          👑 帳號管理
+        </button>
+        <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-500 ml-1">登出</button>
       </div>
     </header>
 
@@ -257,7 +260,10 @@
       </section>
 
       <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-        <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 2. 支出金額與細項</h2>
+        <div class="flex justify-between items-center">
+          <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 2. 支出金額與細項</h2>
+          <button onclick="openCurrencyModal()" class="text-[11px] text-indigo-600 underline">自訂常用幣別</button>
+        </div>
         
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -266,26 +272,24 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">幣別</label>
-            <select id="currencySelect" onchange="onCurrencyChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
-              <option value="TWD">台幣 (TWD)</option>
-              <option value="CNY">人民幣 (CNY)</option>
-            </select>
+            <select id="currencySelect" onchange="onCurrencyChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"></select>
           </div>
         </div>
 
-        <div id="cnyConfigBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
+        <!-- 外幣匯率與手續費區塊 -->
+        <div id="foreignRateBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
           <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div class="text-xs font-bold text-amber-900" id="rateTitleLabel">該日匯率 (1 CNY = ? TWD)</div>
+            <div class="text-xs font-bold text-amber-900" id="rateTitleLabel">該日匯率 (1 外幣 = ? TWD)</div>
             <div class="flex items-center gap-1.5 self-start sm:self-auto">
               <span id="rateStatusBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">查詢中</span>
-              <button type="button" onclick="fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge')" class="text-[11px] text-amber-700 underline active:text-amber-900 whitespace-nowrap">🔄 重新抓取</button>
+              <button type="button" onclick="fetchLiveExchangeRateForCurrent()" class="text-[11px] text-amber-700 underline active:text-amber-900 whitespace-nowrap">🔄 重新抓取</button>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-[10px] font-medium text-amber-800 mb-1">牌告匯率 (可微調)</label>
-              <input id="cnyRate" type="number" step="0.0001" value="4.55" oninput="updateCalcPreview()" 
+              <label class="block text-[10px] font-medium text-amber-800 mb-1">牌告匯率 (折算台幣)</label>
+              <input id="foreignRate" type="number" step="0.0001" value="1.0" oninput="updateCalcPreview()" 
                      class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500">
             </div>
             <div>
@@ -301,7 +305,7 @@
 
         <div id="locationField" class="hidden">
           <label class="block text-xs font-medium text-slate-500 mb-1">地點</label>
-          <input id="recordLocation" type="text" placeholder="例如：花蓮、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <input id="recordLocation" type="text" placeholder="例如：花蓮、迪士尼、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
 
         <div>
@@ -360,10 +364,7 @@
 
           <div class="grid grid-cols-2 gap-2">
             <select id="quickCategory" onchange="onQuickCategoryChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"></select>
-            <select id="quickCurrency" onchange="onQuickCurrencyChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
-              <option value="TWD">台幣 (TWD)</option>
-              <option value="CNY">人民幣 (CNY)</option>
-            </select>
+            <select id="quickCurrency" onchange="onQuickCurrencyChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white font-semibold"></select>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -371,15 +372,16 @@
             <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
           </div>
 
-          <div id="quickCnyBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
+          <!-- 臨時外幣匯率 -->
+          <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
             <div class="flex justify-between items-center text-[10px] text-amber-900">
-              <span class="font-bold">匯率設定</span>
+              <span class="font-bold" id="quickRateLabel">匯率設定</span>
               <span id="quickRateStatus" class="font-semibold text-emerald-700">自動抓取</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-[10px] text-amber-800">匯率</label>
-                <input id="quickCnyRate" type="number" step="0.0001" value="4.55" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+                <label class="block text-[10px] text-amber-800">牌告匯率</label>
+                <input id="quickForeignRate" type="number" step="0.0001" value="1.0" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
               </div>
               <div>
                 <label class="block text-[10px] text-amber-800">信用卡 %</label>
@@ -406,16 +408,17 @@
       <div id="membersDebtList" class="space-y-3"></div>
     </div>
 
-    <!-- TAB 3: 系統功能與版本更新內容 (自動從 APP_CHANGELOG 渲染) -->
+    <!-- TAB 3: 系統功能與版本更新內容 -->
     <div id="tabContent3" class="hidden space-y-4">
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-2">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2">
           <span class="text-sm font-bold text-slate-800">核心功能概覽</span>
-          <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.01</span>
+          <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.02</span>
         </div>
         <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+          <li><strong>常用幣別自訂</strong>：支援全球 20 種主要貨幣，預設為台幣、人民幣、日圓，可自由增刪。</li>
           <li><strong>多人分攤計算</strong>：支援「分攤（自己參與均分）」與「一般代墊（自己不參與）」雙模式。</li>
-          <li><strong>即時匯率換算</strong>：台幣/人民幣即時牌告匯率自動抓取，並支援自訂信用卡海外手續費 %。</li>
+          <li><strong>即時匯率換算</strong>：外幣即時牌告匯率自動抓取，並支援自訂信用卡海外手續費 %。</li>
           <li><strong>Firebase 即時同步</strong>：跨手機與電腦秒級雙向同步，支援多用戶資料完全隔離。</li>
           <li><strong>彈性結算機制</strong>：支援全數結清與自選項目「部分結清」，可隨時校正細項。</li>
         </ul>
@@ -428,12 +431,31 @@
     </div>
   </div>
 
-  <!-- 頁尾版本顯示 -->
   <footer class="py-3 text-center text-[11px] text-slate-400">
-    <span id="footerVersionText">v1.01</span> • 欠款記帳By JimmyWei
+    <span id="footerVersionText">v1.02</span> • 欠款記帳By JimmyWei
   </footer>
 
-  <!-- 彈窗 1：編輯細項 Modal -->
+  <!-- 彈窗 1：常用幣別管理 Modal -->
+  <div id="currencyModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm">常用幣別設定</h3>
+          <p class="text-[11px] text-slate-400">勾選後將顯示於消費幣別下拉選單</p>
+        </div>
+        <button onclick="closeCurrencyModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
+
+      <div class="overflow-y-auto space-y-2 flex-1 pr-1 text-xs" id="currencyCheckboxList"></div>
+
+      <div class="pt-2 border-t border-slate-100 flex gap-2">
+        <button onclick="closeCurrencyModal()" class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium">取消</button>
+        <button onclick="saveUserCurrencies()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold active:bg-indigo-700">儲存設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：編輯細項 Modal -->
   <div id="editRecordModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-4 space-y-3 max-h-[90vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -447,7 +469,7 @@
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-medium text-slate-600">日期</label>
-            <button type="button" onclick="fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge', 'editRateTitleLabel')" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
+            <button type="button" onclick="fetchLiveExchangeRateForEdit()" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
           </div>
           <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg">
         </div>
@@ -471,10 +493,7 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block font-medium text-slate-600 mb-1">幣別</label>
-            <select id="editCurrency" onchange="onEditCurrencyChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
-              <option value="TWD">台幣 (TWD)</option>
-              <option value="CNY">人民幣 (CNY)</option>
-            </select>
+            <select id="editCurrency" onchange="onEditCurrencyChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold"></select>
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">總金額 (原幣)</label>
@@ -482,15 +501,15 @@
           </div>
         </div>
 
-        <div id="editCnyBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
+        <div id="editForeignBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
           <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">人民幣設定</span>
+            <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">外幣設定</span>
             <span id="editRateStatusBadge" class="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-semibold self-start sm:self-auto">連線可查</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-[10px] text-amber-800">匯率</label>
-              <input id="editCnyRate" type="number" step="0.0001" oninput="updateEditPreview()" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
+              <label class="block text-[10px] text-amber-800">牌告匯率</label>
+              <input id="editForeignRate" type="number" step="0.0001" oninput="updateEditPreview()" class="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white">
             </div>
             <div>
               <label class="block text-[10px] text-amber-800">信用卡手續費 %</label>
@@ -523,7 +542,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 2：部分結清 Modal -->
+  <!-- 彈窗 3：部分結清 Modal -->
   <div id="partialModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-4 space-y-4 max-h-[85vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -547,7 +566,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 3：主帳號專用「帳號管理系統」Modal -->
+  <!-- 彈窗 4：帳號管理 Modal (僅主帳號可見) -->
   <div id="adminModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4 max-h-[85vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -575,14 +594,51 @@
   </div>
 
   <script>
-    // ========== 版本控制與更新歷程 (後續直接在此陣列上方新增即可自動同步全站) ==========
+    // ========== 20 大常用幣別清單 ==========
+    const ALL_AVAILABLE_CURRENCIES = [
+      { code: 'TWD', name: '新台幣 (TWD)' },
+      { code: 'CNY', name: '人民幣 (CNY)' },
+      { code: 'JPY', name: '日圓 (JPY)' },
+      { code: 'USD', name: '美元 (USD)' },
+      { code: 'EUR', name: '歐元 (EUR)' },
+      { code: 'KRW', name: '韓元 (KRW)' },
+      { code: 'HKD', name: '港幣 (HKD)' },
+      { code: 'THB', name: '泰銖 (THB)' },
+      { code: 'GBP', name: '英鎊 (GBP)' },
+      { code: 'AUD', name: '澳幣 (AUD)' },
+      { code: 'SGD', name: '新加坡幣 (SGD)' },
+      { code: 'VND', name: '越南盾 (VND)' },
+      { code: 'MYR', name: '馬來西亞令吉 (MYR)' },
+      { code: 'CAD', name: '加拿大幣 (CAD)' },
+      { code: 'CHF', name: '瑞士法郎 (CHF)' },
+      { code: 'NZD', name: '紐西蘭幣 (NZD)' },
+      { code: 'PHP', name: '菲律賓披索 (PHP)' },
+      { code: 'IDR', name: '印尼盾 (IDR)' },
+      { code: 'MOP', name: '澳門幣 (MOP)' },
+      { code: 'SEK', name: '瑞典克朗 (SEK)' }
+    ];
+
+    const DEFAULT_USER_CURRENCIES = ['TWD', 'CNY', 'JPY'];
+
+    // ========== 版本日誌 ==========
     const APP_CHANGELOG = [
+      {
+        version: "v1.02",
+        date: "2026-09-03",
+        title: "新增多幣別管理與常用 20 國幣別支援",
+        notes: [
+          "新增常用幣別設定功能：支援全球最常用的 20 種貨幣，預設為台幣 (TWD)、人民幣 (CNY)、日圓 (JPY)。",
+          "自訂幣別選單彈窗：可隨時增減下拉選單所顯示的貨幣，設定自動同步至雲端。",
+          "通用外幣即時匯率引擎：切換任意外幣（日幣、美金、歐元等）均可自動抓取兌台幣最新牌告匯率。",
+          "多帳號資料完全隔離與安全性優化。"
+        ]
+      },
       {
         version: "v1.01",
         date: "2026-09-03",
         title: "帳號架構獨立與介面體驗升級",
         notes: [
-          "徹底修正多帳號資料隔離：新註冊/登入的帳號皆具備獨立資料庫，不再與其他用戶共用資料。",
+          "修正多帳號資料隔離問題，新註冊用戶擁有獨立純淨資料庫。",
           "隱藏所有介面預設帳號名稱提示，保護使用者隱私。",
           "新增「系統與更新」分頁，支援版本歷程自動化顯示。",
           "匯率設定區塊適應行動端螢幕，解決小螢幕按鈕重疊擠壓問題。",
@@ -611,7 +667,8 @@
       categories: JSON.parse(localStorage.getItem('app_categories')) || DEFAULT_CATEGORIES,
       selectedCategory: '分攤',
       members: JSON.parse(localStorage.getItem('app_members')) || [],
-      records: JSON.parse(localStorage.getItem('app_records')) || [] 
+      records: JSON.parse(localStorage.getItem('app_records')) || [],
+      currencies: JSON.parse(localStorage.getItem('app_user_currencies')) || DEFAULT_USER_CURRENCIES
     };
 
     state.categories = state.categories.map(c => c === '出遊分攤' ? '分攤' : c);
@@ -643,12 +700,14 @@
       localStorage.setItem('app_categories', JSON.stringify(state.categories));
       localStorage.setItem('app_members', JSON.stringify(state.members));
       localStorage.setItem('app_records', JSON.stringify(state.records));
+      localStorage.setItem('app_user_currencies', JSON.stringify(state.currencies));
 
       if (window.cloudDB && window.cloudDB.saveData) {
         window.cloudDB.saveData(state.currentUser, {
           categories: state.categories,
           members: state.members,
           records: state.records,
+          currencies: state.currencies,
           updatedAt: Date.now()
         });
       }
@@ -665,18 +724,21 @@
               ...r,
               category: r.category === '出遊分攤' ? '分攤' : r.category
             }));
+            state.currencies = cloudData.currencies || DEFAULT_USER_CURRENCIES;
           } else {
-            // 新使用者初始狀態：完全獨立且空白
             state.categories = DEFAULT_CATEGORIES;
             state.members = [];
             state.records = [];
+            state.currencies = DEFAULT_USER_CURRENCIES;
           }
 
           localStorage.setItem('app_categories', JSON.stringify(state.categories));
           localStorage.setItem('app_members', JSON.stringify(state.members));
           localStorage.setItem('app_records', JSON.stringify(state.records));
+          localStorage.setItem('app_user_currencies', JSON.stringify(state.currencies));
 
           if (state.isLoggedIn) {
+            renderCurrencyDropdowns();
             renderCategories();
             renderMemberCheckboxes();
             updateCalcPreview();
@@ -711,7 +773,6 @@
         document.getElementById('mainApp').classList.remove('hidden');
         document.getElementById('currentAccountBadge').innerText = state.currentUser;
         
-        // 僅主帳號顯示帳號管理
         const adminBtn = document.getElementById('adminManageBtn');
         if (state.currentUser === 'jimmyeyes') {
           adminBtn.classList.remove('hidden');
@@ -722,6 +783,8 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('recordDate').value = today;
         document.getElementById('quickDate').value = today;
+
+        renderCurrencyDropdowns();
         renderCategories();
         renderMemberCheckboxes();
         updateCalcPreview();
@@ -732,6 +795,137 @@
       }
     }
 
+    // ========== 幣別管理邏輯 ==========
+    function renderCurrencyDropdowns() {
+      const activeList = ALL_AVAILABLE_CURRENCIES.filter(c => state.currencies.includes(c.code));
+      if (activeList.length === 0) {
+        activeList.push({ code: 'TWD', name: '新台幣 (TWD)' });
+      }
+
+      const optionsHtml = activeList.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+
+      const mainSelect = document.getElementById('currencySelect');
+      const quickSelect = document.getElementById('quickCurrency');
+
+      const curMainVal = mainSelect.value || 'TWD';
+      const curQuickVal = quickSelect.value || 'TWD';
+
+      mainSelect.innerHTML = optionsHtml;
+      quickSelect.innerHTML = optionsHtml;
+
+      mainSelect.value = state.currencies.includes(curMainVal) ? curMainVal : activeList[0].code;
+      quickSelect.value = state.currencies.includes(curQuickVal) ? curQuickVal : activeList[0].code;
+
+      onCurrencyChange();
+    }
+
+    function openCurrencyModal() {
+      const container = document.getElementById('currencyCheckboxList');
+      container.innerHTML = ALL_AVAILABLE_CURRENCIES.map(c => {
+        const isChecked = state.currencies.includes(c.code);
+        const isTwd = c.code === 'TWD';
+        return `
+          <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" name="userCurrencyCb" value="${c.code}" ${isChecked ? 'checked' : ''} ${isTwd ? 'disabled' : ''} class="rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="font-medium text-slate-800">${c.name}</span>
+            </div>
+            ${isTwd ? '<span class="text-[10px] text-slate-400">基礎結算幣別</span>' : ''}
+          </label>
+        `;
+      }).join('');
+
+      document.getElementById('currencyModal').classList.remove('hidden');
+    }
+
+    function closeCurrencyModal() {
+      document.getElementById('currencyModal').classList.add('hidden');
+    }
+
+    function saveUserCurrencies() {
+      const cbs = Array.from(document.querySelectorAll('input[name="userCurrencyCb"]:checked')).map(cb => cb.value);
+      if (!cbs.includes('TWD')) cbs.unshift('TWD');
+
+      state.currencies = cbs;
+      syncToStorage();
+      renderCurrencyDropdowns();
+      closeCurrencyModal();
+      alert('已更新常用幣別設定！');
+    }
+
+    // ========== 匯率抓取核心 (支援 20 國幣別自動換算至 TWD) ==========
+    async function fetchUniversalRate(baseCurrency, dateVal, targetInputId, badgeId, titleId) {
+      if (baseCurrency === 'TWD') {
+        document.getElementById(targetInputId).value = 1.0;
+        return;
+      }
+
+      const badge = document.getElementById(badgeId);
+      const title = document.getElementById(titleId);
+
+      if (badge) {
+        badge.innerText = '查詢中...';
+        badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
+      }
+
+      try {
+        const res = await fetch(`https://open.er-api.com/v6/latest/${baseCurrency}`);
+        const data = await res.json();
+
+        if (data && data.rates && data.rates.TWD) {
+          const liveRate = parseFloat(data.rates.TWD.toFixed(4));
+          document.getElementById(targetInputId).value = liveRate;
+
+          if (title) {
+            title.innerText = `該日匯率 (1 ${baseCurrency} = ${liveRate} TWD)`;
+          }
+          if (badge) {
+            badge.innerText = `已取得：${liveRate}`;
+            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
+          }
+        }
+      } catch (err) {
+        if (badge) {
+          badge.innerText = '使用預設值';
+          badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
+        }
+      }
+      updateCalcPreview();
+    }
+
+    function fetchLiveExchangeRateForCurrent() {
+      const curr = document.getElementById('currencySelect').value;
+      const dateVal = document.getElementById('recordDate').value;
+      fetchUniversalRate(curr, dateVal, 'foreignRate', 'rateStatusBadge', 'rateTitleLabel');
+    }
+
+    function fetchLiveExchangeRateForEdit() {
+      const curr = document.getElementById('editCurrency').value;
+      const dateVal = document.getElementById('editDate').value;
+      fetchUniversalRate(curr, dateVal, 'editForeignRate', 'editRateStatusBadge', 'editRateTitleLabel');
+    }
+
+    function onCurrencyChange() {
+      const curr = document.getElementById('currencySelect').value;
+      const box = document.getElementById('foreignRateBox');
+      if (curr !== 'TWD') {
+        box.classList.remove('hidden');
+        fetchLiveExchangeRateForCurrent();
+      } else {
+        box.classList.add('hidden');
+        document.getElementById('foreignRate').value = 1.0;
+        updateCalcPreview();
+      }
+    }
+
+    function onDateChange() {
+      const curr = document.getElementById('currencySelect').value;
+      if (curr !== 'TWD') {
+        fetchLiveExchangeRateForCurrent();
+      }
+    }
+
+    // 登入驗證
     async function handleGoogleSignIn() {
       try {
         const result = await window.cloudAuth.loginWithGoogle();
@@ -776,9 +970,7 @@
       const user = document.getElementById('loginUser').value.trim().toLowerCase();
       const pass = document.getElementById('loginPass').value.trim();
 
-      if (!user || !pass) {
-        return alert('請輸入帳號與密碼！');
-      }
+      if (!user || !pass) return alert('請輸入帳號與密碼！');
 
       const isValid = await window.cloudDB.verifyCustomUser(user, pass);
       if (isValid) {
@@ -811,6 +1003,7 @@
       }
     }
 
+    // 帳號管理彈窗
     async function openAdminModal() {
       if (state.currentUser !== 'jimmyeyes') return;
       document.getElementById('adminModal').classList.remove('hidden');
@@ -879,6 +1072,7 @@
       }
     }
 
+    // 分頁切換
     function switchTab(tabIndex) {
       const tab1 = document.getElementById('tabContent1');
       const tab2 = document.getElementById('tabContent2');
@@ -1061,67 +1255,13 @@
       updateCalcPreview();
     }
 
-    async function fetchExchangeRateForInput(dateInputId, rateInputId, badgeId, titleId = 'rateTitleLabel') {
-      const dateVal = document.getElementById(dateInputId).value || new Date().toISOString().split('T')[0];
-      const badge = document.getElementById(badgeId);
-      const rateTitle = document.getElementById(titleId);
-
-      if (badge) {
-        badge.innerText = '查詢中...';
-        badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
-      }
-
-      try {
-        const res = await fetch('https://open.er-api.com/v6/latest/CNY');
-        const data = await res.json();
-        if (data && data.rates && data.rates.TWD) {
-          const liveRate = parseFloat(data.rates.TWD.toFixed(4));
-          document.getElementById(rateInputId).value = liveRate;
-
-          if (rateTitle) {
-            rateTitle.innerText = `該日匯率 (1 CNY = ${liveRate} TWD)`;
-          }
-
-          if (badge) {
-            badge.innerText = `已取得：${liveRate}`;
-            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
-          }
-        }
-      } catch (err) {
-        if (badge) {
-          badge.innerText = '使用預設值';
-          badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded font-bold whitespace-nowrap';
-        }
-      }
-      updateCalcPreview();
-    }
-
-    function onDateChange() {
-      const currency = document.getElementById('currencySelect').value;
-      if (currency === 'CNY') {
-        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge', 'rateTitleLabel');
-      }
-    }
-
-    function onCurrencyChange() {
-      const currency = document.getElementById('currencySelect').value;
-      const box = document.getElementById('cnyConfigBox');
-      if (currency === 'CNY') {
-        box.classList.remove('hidden');
-        fetchExchangeRateForInput('recordDate', 'cnyRate', 'rateStatusBadge', 'rateTitleLabel');
-      } else {
-        box.classList.add('hidden');
-        updateCalcPreview();
-      }
-    }
-
     function updateCalcPreview() {
       const currency = document.getElementById('currencySelect').value;
       const rawAmount = parseFloat(document.getElementById('recordAmount').value) || 0;
       let totalTWD = 0;
 
-      if (currency === 'CNY') {
-        const rate = parseFloat(document.getElementById('cnyRate').value) || 4.55;
+      if (currency !== 'TWD') {
+        const rate = parseFloat(document.getElementById('foreignRate').value) || 1.0;
         const feePercent = parseFloat(document.getElementById('cardFeeRate').value) || 0;
         totalTWD = Math.round(rawAmount * rate * (1 + feePercent / 100));
       } else {
@@ -1172,8 +1312,8 @@
       let cardFee = 0;
       let totalTWD = 0;
 
-      if (currency === 'CNY') {
-        rate = parseFloat(document.getElementById('cnyRate').value) || 4.55;
+      if (currency !== 'TWD') {
+        rate = parseFloat(document.getElementById('foreignRate').value) || 1.0;
         cardFee = parseFloat(document.getElementById('cardFeeRate').value) || 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
@@ -1211,7 +1351,7 @@
       switchTab(2);
     }
 
-    // ========== 臨時快速記一筆 ==========
+    // ========== TAB 2: 臨時快速記一筆 ==========
     function toggleQuickAddForm() {
       const box = document.getElementById('quickAddBox');
       const isHidden = box.classList.contains('hidden');
@@ -1220,6 +1360,7 @@
         const catSelect = document.getElementById('quickCategory');
         catSelect.innerHTML = state.categories.map(c => `<option value="${c}">${c}</option>`).join('');
         renderQuickMembers();
+        onQuickCurrencyChange();
       } else {
         box.classList.add('hidden');
       }
@@ -1230,19 +1371,20 @@
     }
 
     function onQuickDateChange() {
-      if (document.getElementById('quickCurrency').value === 'CNY') {
-        fetchExchangeRateForInput('quickDate', 'quickCnyRate', 'quickRateStatus');
-      }
+      onQuickCurrencyChange();
     }
 
     function onQuickCurrencyChange() {
       const curr = document.getElementById('quickCurrency').value;
-      const box = document.getElementById('quickCnyBox');
-      if (curr === 'CNY') {
+      const box = document.getElementById('quickRateBox');
+      const dateVal = document.getElementById('quickDate').value;
+      if (curr !== 'TWD') {
         box.classList.remove('hidden');
-        fetchExchangeRateForInput('quickDate', 'quickCnyRate', 'quickRateStatus');
+        document.getElementById('quickRateLabel').innerText = `匯率 (1 ${curr} = ? TWD)`;
+        fetchUniversalRate(curr, dateVal, 'quickForeignRate', 'quickRateStatus', 'quickRateLabel');
       } else {
         box.classList.add('hidden');
+        document.getElementById('quickForeignRate').value = 1.0;
       }
     }
 
@@ -1283,8 +1425,8 @@
       let cardFee = 0;
       let totalTWD = 0;
 
-      if (currency === 'CNY') {
-        rate = parseFloat(document.getElementById('quickCnyRate').value) || 4.55;
+      if (currency !== 'TWD') {
+        rate = parseFloat(document.getElementById('quickForeignRate').value) || 1.0;
         cardFee = parseFloat(document.getElementById('quickCardFee').value) || 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
@@ -1385,7 +1527,7 @@
               <span class="inline-block bg-slate-200 text-slate-700 px-1 rounded text-[10px] mr-1">${it.category}</span>
               <span class="font-medium text-slate-800">${it.note}</span>
               ${it.location ? `<span class="text-indigo-500 ml-1">@${it.location}</span>` : ''}
-              ${it.origCurrency === 'CNY' ? `<span class="text-amber-600 ml-1">(${it.origAmount} 人民幣)</span>` : ''}
+              ${it.origCurrency !== 'TWD' ? `<span class="text-amber-600 ml-1">(${it.origAmount} ${it.origCurrency})</span>` : ''}
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold text-slate-800">NT$ ${it.amountTWD.toLocaleString()}</span>
@@ -1435,10 +1577,15 @@
       document.getElementById('editDate').value = record.date;
       document.getElementById('editLocation').value = record.location || '';
       document.getElementById('editNote').value = record.note;
-      document.getElementById('editCurrency').value = record.currency || 'TWD';
       document.getElementById('editRawAmount').value = record.rawAmount;
-      document.getElementById('editCnyRate').value = record.rate || 4.55;
+      document.getElementById('editForeignRate').value = record.rate || 1.0;
       document.getElementById('editCardFee').value = record.cardFee !== undefined ? record.cardFee : 1.5;
+
+      // 幣別選單 (包含全部可用幣別)
+      const editCurrSelect = document.getElementById('editCurrency');
+      editCurrSelect.innerHTML = ALL_AVAILABLE_CURRENCIES.map(c => `
+        <option value="${c.code}" ${c.code === (record.currency || 'TWD') ? 'selected' : ''}>${c.name}</option>
+      `).join('');
 
       const catSelect = document.getElementById('editCategory');
       catSelect.innerHTML = state.categories.map(c => `<option value="${c}" ${c === record.category ? 'selected' : ''}>${c}</option>`).join('');
@@ -1480,8 +1627,9 @@
     }
 
     function onEditDateChange() {
-      if (document.getElementById('editCurrency').value === 'CNY') {
-        fetchExchangeRateForInput('editDate', 'editCnyRate', 'editRateStatusBadge', 'editRateTitleLabel');
+      const curr = document.getElementById('editCurrency').value;
+      if (curr !== 'TWD') {
+        fetchLiveExchangeRateForEdit();
       }
     }
 
@@ -1491,11 +1639,14 @@
 
     function onEditCurrencyChange() {
       const curr = document.getElementById('editCurrency').value;
-      const cnyBox = document.getElementById('editCnyBox');
-      if (curr === 'CNY') {
-        cnyBox.classList.remove('hidden');
+      const box = document.getElementById('editForeignBox');
+      if (curr !== 'TWD') {
+        box.classList.remove('hidden');
+        document.getElementById('editRateTitleLabel').innerText = `${curr} 匯率設定`;
+        fetchLiveExchangeRateForEdit();
       } else {
-        cnyBox.classList.add('hidden');
+        box.classList.add('hidden');
+        document.getElementById('editForeignRate').value = 1.0;
       }
       updateEditPreview();
     }
@@ -1505,8 +1656,8 @@
       const rawAmount = parseFloat(document.getElementById('editRawAmount').value) || 0;
       let totalTWD = 0;
 
-      if (curr === 'CNY') {
-        const rate = parseFloat(document.getElementById('editCnyRate').value) || 4.55;
+      if (curr !== 'TWD') {
+        const rate = parseFloat(document.getElementById('editForeignRate').value) || 1.0;
         const fee = parseFloat(document.getElementById('editCardFee').value) || 0;
         totalTWD = Math.round(rawAmount * rate * (1 + fee / 100));
       } else {
@@ -1545,8 +1696,8 @@
       let cardFee = 0;
       let totalTWD = 0;
 
-      if (currency === 'CNY') {
-        rate = parseFloat(document.getElementById('editCnyRate').value) || 4.55;
+      if (currency !== 'TWD') {
+        rate = parseFloat(document.getElementById('editForeignRate').value) || 1.0;
         cardFee = parseFloat(document.getElementById('editCardFee').value) || 0;
         totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
       } else {
