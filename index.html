@@ -70,7 +70,7 @@
 
         <!-- 屬性選擇 -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1.5">金錢屬性</label>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">金錢屬性（點擊切換，右側✕可刪除自訂項）</label>
           <div id="categoryContainer" class="flex flex-wrap gap-2 mb-2"></div>
           <div class="flex gap-2">
             <input id="newCategoryInput" type="text" placeholder="自訂屬性 (如: 買菜代付)" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
@@ -103,19 +103,39 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">幣別</label>
-            <select id="currencySelect" onchange="updateCalcPreview()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <select id="currencySelect" onchange="onCurrencyChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
               <option value="TWD">台幣 (TWD)</option>
               <option value="CNY">人民幣 (CNY)</option>
             </select>
           </div>
         </div>
 
-        <!-- 匯率輸入框 (選人民幣時顯示) -->
-        <div id="cnyRateBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-xl">
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-amber-800 font-medium">人民幣匯率 (1 CNY = ? TWD)</span>
-            <input id="cnyRate" type="number" step="0.01" value="4.5" oninput="updateCalcPreview()" class="w-20 px-2 py-1 border border-amber-300 rounded text-right text-xs bg-white">
+        <!-- 人民幣即時匯率與信用卡手續費區塊 -->
+        <div id="cnyConfigBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-semibold text-amber-900">即時匯率 (1 CNY = ? TWD)</span>
+              <span id="rateStatusBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">連線中</span>
+            </div>
+            <button type="button" onclick="fetchLiveExchangeRate()" class="text-[11px] text-amber-700 underline active:text-amber-900">🔄 重新抓取</button>
           </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-medium text-amber-800 mb-1">牌告匯率 (可微調)</label>
+              <input id="cnyRate" type="number" step="0.0001" value="4.55" oninput="updateCalcPreview()" 
+                     class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-amber-800 mb-1">信用卡海外手續費 (%)</label>
+              <div class="relative">
+                <input id="cardFeeRate" type="number" step="0.1" value="1.5" placeholder="1.5" oninput="updateCalcPreview()" 
+                       class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 pr-6">
+                <span class="absolute right-2 top-1.5 text-xs text-slate-400 font-bold">%</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-[10px] text-amber-700">說明：一般海外信用卡手續費為 1.5%，若現金結算可設為 0%。</p>
         </div>
 
         <!-- 地點 (選擇出遊分攤時自動顯示) -->
@@ -140,7 +160,7 @@
         <h2 class="text-xs font-bold text-indigo-900 tracking-wider">結算預覽 (新台幣四捨五入)</h2>
         <div class="space-y-1 text-xs text-indigo-950">
           <div class="flex justify-between">
-            <span>折合新台幣總額：</span>
+            <span>折合新台幣總額（含卡費）：</span>
             <span class="font-bold text-sm text-indigo-700" id="previewTotalTWD">NT$ 0</span>
           </div>
           <div class="flex justify-between">
@@ -199,21 +219,18 @@
   </div>
 
   <script>
-    // 預設分類 (保留這兩個預設)
     const DEFAULT_CATEGORIES = ['出遊分攤', '一般代墊'];
 
-    // 資料狀態 (人員預設為空陣列 [])
     let state = {
       isLoggedIn: localStorage.getItem('app_auth') === 'true',
       categories: JSON.parse(localStorage.getItem('app_categories')) || DEFAULT_CATEGORIES,
       selectedCategory: '出遊分攤',
-      members: JSON.parse(localStorage.getItem('app_members')) || [], 
+      members: JSON.parse(localStorage.getItem('app_members')) || [],
       records: JSON.parse(localStorage.getItem('app_records')) || [] 
     };
 
     let activePartialMember = null;
 
-    // 初始化
     function init() {
       if (state.isLoggedIn) {
         document.getElementById('loginView').classList.add('hidden');
@@ -229,7 +246,6 @@
       }
     }
 
-    // 登入驗證 (強制去除空格與轉小寫)
     function handleLogin() {
       const user = document.getElementById('loginUser').value.trim().toLowerCase();
       const pass = document.getElementById('loginPass').value.trim();
@@ -244,7 +260,6 @@
       }
     }
 
-    // 支援鍵盤 Enter 登入
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !state.isLoggedIn) {
         handleLogin();
@@ -259,7 +274,6 @@
       }
     }
 
-    // 分頁切換
     function switchTab(tabIndex) {
       const tab1 = document.getElementById('tabContent1');
       const tab2 = document.getElementById('tabContent2');
@@ -280,18 +294,25 @@
       }
     }
 
-    // 屬性渲染
     function renderCategories() {
       const container = document.getElementById('categoryContainer');
       container.innerHTML = state.categories.map(cat => {
         const isSelected = cat === state.selectedCategory;
+        const isDefault = DEFAULT_CATEGORIES.includes(cat);
         return `
-          <button type="button" onclick="selectCategory('${cat}')" 
-                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-                    isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }">
-            ${cat}
-          </button>
+          <div class="inline-flex items-center rounded-lg border text-xs overflow-hidden transition ${
+            isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200'
+          }">
+            <button type="button" onclick="selectCategory('${cat}')" class="px-3 py-1.5 font-medium">
+              ${cat}
+            </button>
+            ${!isDefault ? `
+              <button type="button" onclick="removeCategory('${cat}')" 
+                      class="pr-2 pl-1 py-1.5 ${isSelected ? 'text-indigo-200 hover:text-white' : 'text-slate-400 hover:text-rose-500'} text-xs font-bold">
+                ✕
+              </button>
+            ` : ''}
+          </div>
         `;
       }).join('');
 
@@ -320,48 +341,80 @@
       }
     }
 
-    // 成員渲染 (預設空白提示)
-    function renderMemberCheckboxes() {
+    function removeCategory(cat) {
+      if (DEFAULT_CATEGORIES.includes(cat)) return;
+      state.categories = state.categories.filter(c => c !== cat);
+      if (state.selectedCategory === cat) {
+        state.selectedCategory = DEFAULT_CATEGORIES[0];
+      }
+      localStorage.setItem('app_categories', JSON.stringify(state.categories));
+      renderCategories();
+    }
+
+    // 第一步：成員渲染（支援保留目前勾選狀態）
+    function renderMemberCheckboxes(preservedChecked = null) {
       const container = document.getElementById('memberCheckboxes');
       if (state.members.length === 0) {
-        container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-400 py-2">目前尚無成員，請於下方輸入新增</div>`;
+        container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-400 py-2">目前常用名單為空，請於下方新增</div>`;
         return;
       }
 
-      container.innerHTML = state.members.map(m => `
-        <div class="flex items-center justify-between bg-white px-2 py-1.5 rounded-lg border border-slate-200">
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 truncate cursor-pointer flex-1">
-            <input type="checkbox" name="splitMember" value="${m}" checked onchange="updateCalcPreview()" 
-                   class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-            <span class="truncate">${m}</span>
-          </label>
-          <button onclick="removeMember('${m}')" class="text-slate-300 hover:text-rose-500 text-xs px-1 font-bold">×</button>
-        </div>
-      `).join('');
+      // 若未指定保留狀態，則讀取目前畫面上已勾選的名單
+      let checkedSet;
+      if (preservedChecked !== null) {
+        checkedSet = new Set(preservedChecked);
+      } else {
+        const currentlyChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
+        // 如果目前畫面上完全沒有 input (初次進入)，則預設全選
+        checkedSet = currentlyChecked.length > 0 ? new Set(currentlyChecked) : new Set(state.members);
+      }
+
+      container.innerHTML = state.members.map(m => {
+        const isChecked = checkedSet.has(m);
+        return `
+          <div class="flex items-center justify-between bg-white px-2 py-1.5 rounded-lg border border-slate-200">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 truncate cursor-pointer flex-1">
+              <input type="checkbox" name="splitMember" value="${m}" ${isChecked ? 'checked' : ''} onchange="updateCalcPreview()" 
+                     class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+              <span class="truncate">${m}</span>
+            </label>
+            <button onclick="removeMemberFromInput('${m}')" title="從常用名單移除" class="text-slate-300 hover:text-rose-500 text-xs px-1.5 font-bold">×</button>
+          </div>
+        `;
+      }).join('');
     }
 
+    // 新增人員：保留原本勾選的人，並將新成員預設勾選
     function addMember() {
       const input = document.getElementById('newMemberInput');
       const name = input.value.trim();
       if (name && !state.members.includes(name)) {
+        // 先收集目前畫面上被勾選的人員
+        const currentChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
+        currentChecked.push(name); // 新成員預設勾選
+
         state.members.push(name);
         localStorage.setItem('app_members', JSON.stringify(state.members));
         input.value = '';
-        renderMemberCheckboxes();
+
+        // 傳入保留名單，避免重置其他人的勾選狀態
+        renderMemberCheckboxes(currentChecked);
         updateCalcPreview();
       }
     }
 
-    function removeMember(name) {
-      const hasDebt = state.records.some(r => r.members.includes(name));
-      if (hasDebt) {
-        alert(`【${name}】目前還有未結清的欠款紀錄，無法直接刪除！`);
-        return;
-      }
+    function removeMemberFromInput(name) {
+      // 收集目前被勾選的人（排除被刪除者）
+      const currentChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked'))
+                                  .map(cb => cb.value)
+                                  .filter(m => m !== name);
+
       state.members = state.members.filter(m => m !== name);
       localStorage.setItem('app_members', JSON.stringify(state.members));
-      renderMemberCheckboxes();
+
+      renderMemberCheckboxes(currentChecked);
       updateCalcPreview();
+      renderDebtsTab();
     }
 
     function toggleAllMembers() {
@@ -371,21 +424,54 @@
       updateCalcPreview();
     }
 
-    // 計算換算預覽
+    function onCurrencyChange() {
+      const currency = document.getElementById('currencySelect').value;
+      const box = document.getElementById('cnyConfigBox');
+      if (currency === 'CNY') {
+        box.classList.remove('hidden');
+        fetchLiveExchangeRate();
+      } else {
+        box.classList.add('hidden');
+        updateCalcPreview();
+      }
+    }
+
+    async function fetchLiveExchangeRate() {
+      const badge = document.getElementById('rateStatusBadge');
+      badge.innerText = '抓取中...';
+      badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
+
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/CNY');
+        const data = await response.json();
+
+        if (data && data.rates && data.rates.TWD) {
+          const liveRate = parseFloat(data.rates.TWD.toFixed(4));
+          document.getElementById('cnyRate').value = liveRate;
+          badge.innerText = '即時匯率已更新';
+          badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
+        } else {
+          throw new Error('無法取得匯率數據');
+        }
+      } catch (err) {
+        badge.innerText = '離線/自訂模式';
+        badge.className = 'text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded';
+      }
+      updateCalcPreview();
+    }
+
     function updateCalcPreview() {
       const currency = document.getElementById('currencySelect').value;
-      const rateBox = document.getElementById('cnyRateBox');
-      let rate = 1.0;
+      const rawAmount = parseFloat(document.getElementById('recordAmount').value) || 0;
+      let totalTWD = 0;
 
       if (currency === 'CNY') {
-        rateBox.classList.remove('hidden');
-        rate = parseFloat(document.getElementById('cnyRate').value) || 4.5;
+        const rate = parseFloat(document.getElementById('cnyRate').value) || 4.55;
+        const feePercent = parseFloat(document.getElementById('cardFeeRate').value) || 0;
+        totalTWD = Math.round(rawAmount * rate * (1 + feePercent / 100));
       } else {
-        rateBox.classList.add('hidden');
+        totalTWD = Math.round(rawAmount);
       }
-
-      const rawAmount = parseFloat(document.getElementById('recordAmount').value) || 0;
-      const totalTWD = Math.round(rawAmount * rate);
 
       const checkedMembers = Array.from(document.querySelectorAll('input[name="splitMember"]:checked'));
       const memberCount = checkedMembers.length;
@@ -396,23 +482,32 @@
       document.getElementById('previewPerPersonTWD').innerText = `NT$ ${perPersonTWD.toLocaleString()}`;
     }
 
-    // 儲存欠款紀錄
     function saveRecord() {
       const date = document.getElementById('recordDate').value;
       const category = state.selectedCategory;
       const location = (category === '出遊分攤') ? document.getElementById('recordLocation').value.trim() : '';
       const currency = document.getElementById('currencySelect').value;
-      const rate = currency === 'CNY' ? (parseFloat(document.getElementById('cnyRate').value) || 4.5) : 1.0;
       const rawAmount = parseFloat(document.getElementById('recordAmount').value);
       const note = document.getElementById('recordNote').value.trim();
 
       const checkedMembers = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
 
       if (!rawAmount || rawAmount <= 0) return alert('請輸入有效金額！');
-      if (checkedMembers.length === 0) return alert('請至少新增並勾選一位欠款人員！');
+      if (checkedMembers.length === 0) return alert('請至少勾選一位欠款人員！');
       if (category === '出遊分攤' && !location) return alert('「出遊分攤」請輸入地點！');
 
-      const totalTWD = Math.round(rawAmount * rate);
+      let rate = 1.0;
+      let cardFee = 0;
+      let totalTWD = 0;
+
+      if (currency === 'CNY') {
+        rate = parseFloat(document.getElementById('cnyRate').value) || 4.55;
+        cardFee = parseFloat(document.getElementById('cardFeeRate').value) || 0;
+        totalTWD = Math.round(rawAmount * rate * (1 + cardFee / 100));
+      } else {
+        totalTWD = Math.round(rawAmount);
+      }
+
       const perPersonTWD = Math.round(totalTWD / checkedMembers.length);
 
       const newRecord = {
@@ -422,6 +517,7 @@
         location,
         currency,
         rate,
+        cardFee,
         rawAmount,
         totalTWD,
         perPersonTWD,
@@ -443,13 +539,19 @@
       switchTab(2);
     }
 
-    // TAB 2: 欠款總覽渲染
     function renderDebtsTab() {
       const container = document.getElementById('membersDebtList');
       let grandTotal = 0;
 
+      const activeDebtorSet = new Set();
+      state.records.forEach(r => {
+        r.members.forEach(m => activeDebtorSet.add(m));
+      });
+
+      const allDisplayMembers = Array.from(new Set([...state.members, ...activeDebtorSet]));
+
       const memberDebts = {};
-      state.members.forEach(m => memberDebts[m] = []);
+      allDisplayMembers.forEach(m => memberDebts[m] = []);
 
       state.records.forEach(r => {
         r.members.forEach(m => {
@@ -462,7 +564,8 @@
             note: r.note,
             amountTWD: r.perPersonTWD,
             origCurrency: r.currency,
-            origAmount: (r.rawAmount / r.members.length).toFixed(1)
+            origAmount: (r.rawAmount / r.members.length).toFixed(1),
+            cardFee: r.cardFee
           });
           grandTotal += r.perPersonTWD;
         });
@@ -470,14 +573,19 @@
 
       document.getElementById('grandTotalDebt').innerText = `NT$ ${grandTotal.toLocaleString()}`;
 
-      if (state.members.length === 0) {
-        container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">目前尚無任何人員資料</div>`;
+      if (allDisplayMembers.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">目前尚無任何人員或欠款資料</div>`;
         return;
       }
 
-      const cardsHtml = state.members.map(member => {
+      const cardsHtml = allDisplayMembers.map(member => {
         const items = memberDebts[member] || [];
         const total = items.reduce((sum, it) => sum + it.amountTWD, 0);
+        const isRemovedFromInput = !state.members.includes(member);
+
+        if (isRemovedFromInput && items.length === 0) {
+          return '';
+        }
 
         if (items.length === 0) {
           return `
@@ -492,9 +600,10 @@
           <div class="flex justify-between items-start py-1 border-b border-slate-100 last:border-0 text-[11px]">
             <div>
               <span class="text-slate-400 mr-1">${it.date}</span>
+              <span class="inline-block bg-slate-200 text-slate-700 px-1 rounded text-[10px] mr-1">${it.category}</span>
               <span class="font-medium text-slate-700">${it.note}</span>
               ${it.location ? `<span class="text-indigo-500 ml-1">@${it.location}</span>` : ''}
-              ${it.origCurrency === 'CNY' ? `<span class="text-amber-600 ml-1">(${it.origAmount} 人民幣)</span>` : ''}
+              ${it.origCurrency === 'CNY' ? `<span class="text-amber-600 ml-1">(${it.origAmount} 人民幣含卡費${it.cardFee}%)</span>` : ''}
             </div>
             <span class="font-semibold text-slate-800">NT$ ${it.amountTWD.toLocaleString()}</span>
           </div>
@@ -505,7 +614,8 @@
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">
               <div>
                 <span class="font-bold text-sm text-slate-800">${member}</span>
-                <span class="text-xs text-slate-400 ml-2">待還 (${items.length} 筆)</span>
+                ${isRemovedFromInput ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ml-1.5">已從名單移除</span>' : ''}
+                <span class="text-xs text-slate-400 ml-1">待還 (${items.length} 筆)</span>
               </div>
               <span class="font-bold text-base text-rose-600">NT$ ${total.toLocaleString()}</span>
             </div>
@@ -529,7 +639,6 @@
       container.innerHTML = cardsHtml;
     }
 
-    // 全數結清
     function settleAllMemberDebts(member) {
       if (!confirm(`確定要將【${member}】的所有欠款全部結清清除嗎？`)) return;
 
@@ -543,7 +652,6 @@
       alert(`已將【${member}】的所有帳目結清！`);
     }
 
-    // 部分結清彈窗
     function openPartialModal(member) {
       activePartialMember = member;
       document.getElementById('modalMemberName').innerText = `欠款成員：${member}`;
@@ -583,7 +691,6 @@
       activePartialMember = null;
     }
 
-    // 確認部分結清
     function confirmPartialSettlement() {
       if (!activePartialMember) return;
       const checkedBoxes = Array.from(document.querySelectorAll('input[name="partialCheckbox"]:checked'));
