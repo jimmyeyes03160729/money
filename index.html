@@ -136,9 +136,17 @@
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
     }
+    
+    /* 強制消除 iOS Safari 日期選擇器外觀與溢出問題 */
     input[type="date"] {
-      min-width: 0;
-      width: 100%;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      box-sizing: border-box;
+      width: 100% !important;
+      max-width: 100% !important;
+      display: block;
+      margin: 0;
     }
   </style>
 </head>
@@ -276,7 +284,7 @@
           <button onclick="openCurrencyModal()" class="text-[11px] text-indigo-600 underline">自訂常用幣別</button>
         </div>
         
-        <!-- 修正重疊：日期與幣別各佔獨立一行，並加上「跳至今日」按鈕 -->
+        <!-- 日期與幣別分行排版，徹底解決重疊與溢出邊界 -->
         <div class="space-y-2.5">
           <div>
             <div class="flex justify-between items-center mb-1">
@@ -285,7 +293,9 @@
                 📅 跳至今日
               </button>
             </div>
-            <input id="recordDate" type="date" onchange="onDateChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+            <div class="w-full">
+              <input id="recordDate" type="date" onchange="onDateChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+            </div>
           </div>
 
           <div>
@@ -403,7 +413,9 @@
               <button type="button" onclick="setTodayDate('quickDate', true)" class="text-[10px] text-indigo-600 underline">📅 今日</button>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <input id="quickDate" type="date" onchange="onQuickDateChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+              <div class="w-full">
+                <input id="quickDate" type="date" onchange="onQuickDateChange()" class="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+              </div>
               <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
             </div>
           </div>
@@ -520,7 +532,9 @@
               <button type="button" onclick="fetchLiveExchangeRateForEdit()" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
             </div>
           </div>
-          <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+          <div class="w-full">
+            <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -741,7 +755,6 @@
     let pendingGoogleUser = null;
     let activePartialMember = null;
 
-    // 快捷跳至今日
     function setTodayDate(inputId, isQuick = false) {
       const today = new Date().toISOString().split('T')[0];
       const elem = document.getElementById(inputId);
@@ -938,7 +951,6 @@
       }
     }
 
-    // 幣別管理邏輯
     function renderCurrencyDropdowns() {
       const activeList = ALL_AVAILABLE_CURRENCIES.filter(c => state.currencies.includes(c.code));
       if (activeList.length === 0) {
@@ -996,7 +1008,6 @@
       alert('已更新常用幣別設定！');
     }
 
-    // 匯率抓取核心
     async function fetchUniversalRate(baseCurrency, dateVal, targetInputId, badgeId, titleId) {
       if (baseCurrency === 'TWD') {
         document.getElementById(targetInputId).value = 1.0;
@@ -1068,7 +1079,6 @@
       }
     }
 
-    // 登入驗證
     async function handleGoogleSignIn() {
       try {
         const result = await window.cloudAuth.loginWithGoogle();
