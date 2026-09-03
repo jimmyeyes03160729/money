@@ -144,7 +144,7 @@
   <div id="loginView" class="min-h-screen flex items-center justify-center p-4">
     <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-sm border border-slate-200 space-y-4">
       <div class="text-center">
-        <h1 class="text-xl font-bold text-slate-800">欠款記帳By JimmyWei</h1>
+        <h1 class="text-xl font-bold text-slate-800">欠款記帳</h1>
         <p class="text-xs text-slate-500 mt-1">請選擇登入方式</p>
       </div>
 
@@ -206,22 +206,31 @@
 
   <!-- 主系統介面 -->
   <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
-    <header class="flex justify-between items-center bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200">
-      <div>
+    <!-- 頂部資訊 (優化雙行排版) -->
+    <header class="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+      <!-- 第一行：標題 + 即時同步狀態 + 登出 -->
+      <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
-          <h1 class="text-base font-bold text-slate-800">欠款記帳By JimmyWei</h1>
-          <span id="syncStatus" class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">雲端即時同步</span>
+          <h1 class="text-base font-bold text-slate-800 tracking-tight">欠款記帳</h1>
+          <span id="syncStatus" class="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            已連線
+          </span>
         </div>
-        <p class="text-[11px] text-slate-500">當前帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600">--</span></p>
+        <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-500 whitespace-nowrap px-1">登出</button>
       </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="openCurrencyModal()" title="幣別自訂管理" class="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2 py-1 rounded-lg font-bold hover:bg-slate-200 active:scale-95 transition">
-          ⚙️ 幣別
-        </button>
-        <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition">
-          👑 帳號管理
-        </button>
-        <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-500 ml-1">登出</button>
+
+      <!-- 第二行：當前帳號 + 功能快捷按鈕 -->
+      <div class="flex justify-between items-center pt-1.5 border-t border-slate-100">
+        <p class="text-[11px] text-slate-400">帳號：<span id="currentAccountBadge" class="font-bold text-indigo-600 font-mono">--</span></p>
+        <div class="flex items-center gap-1.5">
+          <button onclick="openCurrencyModal()" class="text-[11px] bg-slate-100 text-slate-700 border border-slate-200 px-2 py-1 rounded-lg font-medium hover:bg-slate-200 active:scale-95 transition whitespace-nowrap flex items-center gap-1">
+            <span>⚙️</span> 幣別
+          </button>
+          <button id="adminManageBtn" onclick="openAdminModal()" class="hidden text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 active:scale-95 transition whitespace-nowrap flex items-center gap-1">
+            <span>👑</span> 管理
+          </button>
+        </div>
       </div>
     </header>
 
@@ -305,7 +314,7 @@
 
         <div id="locationField" class="hidden">
           <label class="block text-xs font-medium text-slate-500 mb-1">地點</label>
-          <input id="recordLocation" type="text" placeholder="例如：花蓮、迪士尼、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <input id="recordLocation" type="text" placeholder="例如：花蓮、餐廳" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
 
         <div>
@@ -372,7 +381,6 @@
             <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
           </div>
 
-          <!-- 臨時外幣匯率 -->
           <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-1.5">
             <div class="flex justify-between items-center text-[10px] text-amber-900">
               <span class="font-bold" id="quickRateLabel">匯率設定</span>
@@ -1581,7 +1589,6 @@
       document.getElementById('editForeignRate').value = record.rate || 1.0;
       document.getElementById('editCardFee').value = record.cardFee !== undefined ? record.cardFee : 1.5;
 
-      // 幣別選單 (包含全部可用幣別)
       const editCurrSelect = document.getElementById('editCurrency');
       editCurrSelect.innerHTML = ALL_AVAILABLE_CURRENCIES.map(c => `
         <option value="${c.code}" ${c.code === (record.currency || 'TWD') ? 'selected' : ''}>${c.name}</option>
