@@ -136,6 +136,10 @@
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
     }
+    input[type="date"] {
+      min-width: 0;
+      width: 100%;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
@@ -206,7 +210,7 @@
 
   <!-- 主系統介面 -->
   <div id="mainApp" class="hidden max-w-md mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
-    <!-- 頂部資訊 (優化雙行排版) -->
+    <!-- 頂部資訊 -->
     <header class="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200 space-y-2">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
@@ -272,20 +276,26 @@
           <button onclick="openCurrencyModal()" class="text-[11px] text-indigo-600 underline">自訂常用幣別</button>
         </div>
         
-        <div class="grid grid-cols-2 gap-3">
+        <!-- 修正重疊：日期與幣別各佔獨立一行，並加上「跳至今日」按鈕 -->
+        <div class="space-y-2.5">
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">日期 (換日期自動查匯率)</label>
-            <input id="recordDate" type="date" onchange="onDateChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-medium text-slate-500">日期 (換日期自動查匯率)</label>
+              <button type="button" onclick="setTodayDate('recordDate')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium active:scale-95 transition flex items-center gap-0.5">
+                📅 跳至今日
+              </button>
+            </div>
+            <input id="recordDate" type="date" onchange="onDateChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
           </div>
+
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">幣別</label>
+            <label class="block text-xs font-medium text-slate-500 mb-1">結算幣別</label>
             <select id="currencySelect" onchange="onCurrencyChange()" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"></select>
           </div>
         </div>
 
-        <!-- 外幣匯率與手續費區塊 (徹底解決排版重疊，加入現金/信用卡切換) -->
+        <!-- 外幣匯率與手續費區塊 -->
         <div id="foreignRateBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-3">
-          <!-- 頂部資訊列：支援彈性換行防止手機重疊 -->
           <div class="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 pb-2">
             <div class="text-xs font-bold text-amber-950 truncate max-w-full" id="rateTitleLabel">外幣匯率 (折合新台幣)</div>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -294,7 +304,6 @@
             </div>
           </div>
 
-          <!-- 支付方式切換 (現金 vs 信用卡) -->
           <div>
             <label class="block text-[10px] font-medium text-amber-900 mb-1.5">支付方式 (手續費模式)</label>
             <div class="grid grid-cols-2 gap-2">
@@ -313,7 +322,6 @@
               <input id="foreignRate" type="number" step="0.0001" value="1.0" oninput="updateCalcPreview()" 
                      class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500">
             </div>
-            <!-- 僅在選擇信用卡時顯示 -->
             <div id="cardFeeInputCol" class="col-span-1 hidden">
               <label class="block text-[10px] font-medium text-amber-800 mb-1">海外交易手續費 (%)</label>
               <div class="relative">
@@ -389,19 +397,24 @@
             <select id="quickCurrency" onchange="onQuickCurrencyChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white font-semibold"></select>
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <input id="quickDate" type="date" onchange="onQuickDateChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
-            <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[11px] text-slate-500">日期</label>
+              <button type="button" onclick="setTodayDate('quickDate', true)" class="text-[10px] text-indigo-600 underline">📅 今日</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="quickDate" type="date" onchange="onQuickDateChange()" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white">
+              <input id="quickAmount" type="number" min="0" placeholder="金額 (原幣)" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
           </div>
 
-          <!-- 臨時外幣匯率與付款方式 -->
+          <!-- 臨時外幣匯率 -->
           <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-2">
             <div class="flex flex-wrap justify-between items-center gap-1 text-[10px] text-amber-900">
               <span class="font-bold" id="quickRateLabel">匯率設定</span>
               <span id="quickRateStatus" class="font-semibold text-emerald-700">自動抓取</span>
             </div>
 
-            <!-- 現金/卡費切換 -->
             <div class="grid grid-cols-2 gap-1.5">
               <button type="button" id="quickPayCashBtn" onclick="setQuickPaymentType('cash')" class="py-1 text-[11px] font-bold rounded border border-amber-300 bg-white text-slate-700">
                 💵 現金
@@ -449,10 +462,10 @@
           <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.02</span>
         </div>
         <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+          <li><strong>快速跳至今日</strong>：日期欄位一鍵填入今日，並自動查詢當日即時匯率。</li>
           <li><strong>現金/信用卡自由切換</strong>：外幣支援擇一選擇現金（0%卡費）或信用卡（手續費微調）。</li>
           <li><strong>常用幣別自訂</strong>：支援全球 20 種主要貨幣，預設為台幣、人民幣、日圓，可自由增刪。</li>
           <li><strong>多人分攤計算</strong>：支援「分攤（自己參與均分）」與「一般代墊（自己不參與）」雙模式。</li>
-          <li><strong>即時匯率換算</strong>：外幣即時牌告匯率自動抓取。</li>
           <li><strong>Firebase 即時同步</strong>：跨手機與電腦秒級雙向同步，支援多用戶資料完全隔離。</li>
         </ul>
       </div>
@@ -502,9 +515,12 @@
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-medium text-slate-600">日期</label>
-            <button type="button" onclick="fetchLiveExchangeRateForEdit()" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="setTodayDate('editDate'); fetchLiveExchangeRateForEdit();" class="text-[10px] text-slate-500 underline">📅 今日</button>
+              <button type="button" onclick="fetchLiveExchangeRateForEdit()" class="text-[10px] text-indigo-600 underline">抓取該日匯率</button>
+            </div>
           </div>
-          <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg">
+          <input id="editDate" type="date" onchange="onEditDateChange()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -610,7 +626,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 4：帳號管理 Modal (僅主帳號可見) -->
+  <!-- 彈窗 4：帳號管理 Modal -->
   <div id="adminModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4 max-h-[85vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -671,10 +687,11 @@
         date: "2026-09-03",
         title: "新增多幣別管理與常用 20 國幣別支援",
         notes: [
+          "排版修復：徹底解決手機端日期與幣別選單重疊問題，改為獨立流式排版。",
+          "新增「📅 跳至今日」按鈕：一鍵快速帶入當天日期並自動重新查詢當日牌告匯率。",
           "新增外幣支付模式選擇：支援「現金（0%卡費）」與「信用卡（彈性微調手續費）」雙選模式。",
           "優化手機端匯率資訊排版，徹底解決小螢幕按鈕與標籤重疊問題。",
-          "新增常用幣別設定功能：支援全球最常用的 20 種貨幣，預設為台幣 (TWD)、人民幣 (CNY)、日圓 (JPY)。",
-          "自訂幣別選單彈窗：可隨時增減下拉選單所顯示的貨幣，設定自動同步至雲端。"
+          "新增常用幣別設定功能：支援全球最常用的 20 種貨幣，預設為台幣 (TWD)、人民幣 (CNY)、日圓 (JPY)。"
         ]
       },
       {
@@ -714,7 +731,6 @@
       currencies: JSON.parse(localStorage.getItem('app_user_currencies')) || DEFAULT_USER_CURRENCIES
     };
 
-    // 模式狀態：'card' 或 'cash'
     let currentPaymentType = 'card';
     let quickPaymentType = 'card';
     let editPaymentType = 'card';
@@ -725,7 +741,20 @@
     let pendingGoogleUser = null;
     let activePartialMember = null;
 
-    // ========== 現金 / 信用卡切換函數 ==========
+    // 快捷跳至今日
+    function setTodayDate(inputId, isQuick = false) {
+      const today = new Date().toISOString().split('T')[0];
+      const elem = document.getElementById(inputId);
+      if (elem) {
+        elem.value = today;
+        if (isQuick) {
+          onQuickDateChange();
+        } else {
+          onDateChange();
+        }
+      }
+    }
+
     function setPaymentType(type) {
       currentPaymentType = type;
       const cashBtn = document.getElementById('payTypeCashBtn');
@@ -909,7 +938,7 @@
       }
     }
 
-    // ========== 幣別管理邏輯 ==========
+    // 幣別管理邏輯
     function renderCurrencyDropdowns() {
       const activeList = ALL_AVAILABLE_CURRENCIES.filter(c => state.currencies.includes(c.code));
       if (activeList.length === 0) {
@@ -967,7 +996,7 @@
       alert('已更新常用幣別設定！');
     }
 
-    // ========== 匯率抓取核心 ==========
+    // 匯率抓取核心
     async function fetchUniversalRate(baseCurrency, dateVal, targetInputId, badgeId, titleId) {
       if (baseCurrency === 'TWD') {
         document.getElementById(targetInputId).value = 1.0;
@@ -1117,7 +1146,6 @@
       }
     }
 
-    // 帳號管理彈窗
     async function openAdminModal() {
       if (state.currentUser !== 'jimmyeyes') return;
       document.getElementById('adminModal').classList.remove('hidden');
@@ -1186,7 +1214,6 @@
       }
     }
 
-    // 分頁切換
     function switchTab(tabIndex) {
       const tab1 = document.getElementById('tabContent1');
       const tab2 = document.getElementById('tabContent2');
@@ -1376,7 +1403,6 @@
 
       if (currency !== 'TWD') {
         const rate = parseFloat(document.getElementById('foreignRate').value) || 1.0;
-        // 現金模式手續費自動為 0
         const feePercent = currentPaymentType === 'card' ? (parseFloat(document.getElementById('cardFeeRate').value) || 0) : 0;
         totalTWD = Math.round(rawAmount * rate * (1 + feePercent / 100));
       } else {
@@ -1704,7 +1730,6 @@
       const catSelect = document.getElementById('editCategory');
       catSelect.innerHTML = state.categories.map(c => `<option value="${c}" ${c === record.category ? 'selected' : ''}>${c}</option>`).join('');
 
-      // 判斷原紀錄是現金還是信用卡
       if (record.currency !== 'TWD' && (!record.cardFee || record.cardFee === 0)) {
         setEditPaymentType('cash');
       } else {
