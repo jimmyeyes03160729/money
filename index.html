@@ -23,21 +23,21 @@
     <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-sm border border-slate-200 space-y-4">
       <div class="text-center">
         <h1 class="text-xl font-bold text-slate-800">欠款記帳系統</h1>
-        <p class="text-xs text-slate-500 mt-1">請輸入專屬帳號與密碼登入</p>
+        <p class="text-xs text-slate-500 mt-1">請輸入密碼登入</p>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">帳號</label>
-        <input id="loginUser" type="text" placeholder="jimmyeyes" 
+        <input id="loginUser" type="text" value="jimmyeyes"
                autocapitalize="none" autocorrect="off" spellcheck="false"
-               class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+               class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">密碼</label>
-        <input id="loginPass" type="password" placeholder="請輸入密碼" 
+        <input id="loginPass" type="password" placeholder="請輸入密碼" autofocus
                autocapitalize="none" autocorrect="off"
                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
-      <p id="loginError" class="text-xs text-rose-500 hidden text-center">帳號或密碼錯誤！請注意大小寫。</p>
+      <p id="loginError" class="text-xs text-rose-500 hidden text-center">密碼錯誤！請重新輸入。</p>
       <button onclick="handleLogin()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold text-sm active:bg-indigo-700">登入</button>
     </div>
   </div>
@@ -243,6 +243,11 @@
       } else {
         document.getElementById('loginView').classList.remove('hidden');
         document.getElementById('mainApp').classList.add('hidden');
+        // 預設填入帳號並聚焦密碼框
+        document.getElementById('loginUser').value = 'jimmyeyes';
+        setTimeout(() => {
+          document.getElementById('loginPass').focus();
+        }, 100);
       }
     }
 
@@ -351,7 +356,6 @@
       renderCategories();
     }
 
-    // 第一步：成員渲染（支援保留目前勾選狀態）
     function renderMemberCheckboxes(preservedChecked = null) {
       const container = document.getElementById('memberCheckboxes');
       if (state.members.length === 0) {
@@ -359,13 +363,11 @@
         return;
       }
 
-      // 若未指定保留狀態，則讀取目前畫面上已勾選的名單
       let checkedSet;
       if (preservedChecked !== null) {
         checkedSet = new Set(preservedChecked);
       } else {
         const currentlyChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
-        // 如果目前畫面上完全沒有 input (初次進入)，則預設全選
         checkedSet = currentlyChecked.length > 0 ? new Set(currentlyChecked) : new Set(state.members);
       }
 
@@ -384,27 +386,23 @@
       }).join('');
     }
 
-    // 新增人員：保留原本勾選的人，並將新成員預設勾選
     function addMember() {
       const input = document.getElementById('newMemberInput');
       const name = input.value.trim();
       if (name && !state.members.includes(name)) {
-        // 先收集目前畫面上被勾選的人員
         const currentChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked')).map(cb => cb.value);
-        currentChecked.push(name); // 新成員預設勾選
+        currentChecked.push(name);
 
         state.members.push(name);
         localStorage.setItem('app_members', JSON.stringify(state.members));
         input.value = '';
 
-        // 傳入保留名單，避免重置其他人的勾選狀態
         renderMemberCheckboxes(currentChecked);
         updateCalcPreview();
       }
     }
 
     function removeMemberFromInput(name) {
-      // 收集目前被勾選的人（排除被刪除者）
       const currentChecked = Array.from(document.querySelectorAll('input[name="splitMember"]:checked'))
                                   .map(cb => cb.value)
                                   .filter(m => m !== name);
