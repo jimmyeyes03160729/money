@@ -254,7 +254,6 @@
       <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
         <h2 class="text-xs font-bold text-indigo-600 tracking-wider">STEP 1. 金錢屬性與人員</h2>
 
-        <!-- 金錢屬性 -->
         <div>
           <div class="flex justify-between items-center mb-1.5">
             <label class="block text-xs font-medium text-slate-500">金錢屬性</label>
@@ -264,7 +263,6 @@
           </div>
           <div id="categoryContainer" class="flex flex-wrap gap-2 mb-2"></div>
           
-          <!-- 折疊抽屜：點擊才顯示新增屬性輸入框 -->
           <div id="newCategoryDrawer" class="hidden flex gap-2 pt-1">
             <input id="newCategoryInput" type="text" placeholder="自訂屬性 (如: 買菜代付)" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <button onclick="addCategory()" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg active:bg-indigo-700 font-medium">確定新增</button>
@@ -272,7 +270,6 @@
           </div>
         </div>
 
-        <!-- 分攤人員 -->
         <div class="pt-2 border-t border-slate-100">
           <div class="flex justify-between items-center mb-1.5">
             <label class="block text-xs font-medium text-slate-500" id="memberSectionTitle">選擇本次分攤成員</label>
@@ -286,7 +283,6 @@
           </div>
           <div id="memberCheckboxes" class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-2"></div>
           
-          <!-- 折疊抽屜：點擊才顯示新增人員輸入框 -->
           <div id="newMemberDrawer" class="hidden flex gap-2 pt-1">
             <input id="newMemberInput" type="text" placeholder="輸入欠款人員名稱" class="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <button onclick="addMember()" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg active:bg-indigo-700 font-medium">確定新增</button>
@@ -320,7 +316,6 @@
           </div>
         </div>
 
-        <!-- 外幣匯率與手續費區塊 -->
         <div id="foreignRateBox" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 pb-2">
             <div class="text-xs font-bold text-amber-950 truncate max-w-full" id="rateTitleLabel">外幣匯率 (折合新台幣)</div>
@@ -436,7 +431,6 @@
             </div>
           </div>
 
-          <!-- 臨時外幣匯率 -->
           <div id="quickRateBox" class="hidden bg-amber-50 p-2.5 rounded-lg border border-amber-200 space-y-2">
             <div class="flex flex-wrap justify-between items-center gap-1 text-[10px] text-amber-900">
               <span class="font-bold" id="quickRateLabel">匯率設定</span>
@@ -490,6 +484,7 @@
           <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" id="tabCurrentVersionBadge">v1.02</span>
         </div>
         <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+          <li><strong>部分結清即時加總</strong>：勾選已還款項目時自動加總金額與選取筆數。</li>
           <li><strong>快速跳至今日</strong>：日期欄位一鍵填入今日，並自動查詢當日即時匯率。</li>
           <li><strong>現金/信用卡自由切換</strong>：外幣支援擇一選擇現金（0%卡費）或信用卡（手續費微調）。</li>
           <li><strong>常用幣別自訂</strong>：支援全球 20 種主要貨幣，預設為台幣、人民幣、日圓，可自由增刪。</li>
@@ -580,7 +575,6 @@
           </div>
         </div>
 
-        <!-- 編輯視窗外幣設定 -->
         <div id="editForeignBox" class="hidden bg-amber-50 border border-amber-200 p-2.5 rounded-lg space-y-2">
           <div class="flex flex-wrap justify-between items-center gap-1">
             <span class="text-[10px] text-amber-800 font-bold" id="editRateTitleLabel">外幣設定</span>
@@ -632,9 +626,9 @@
     </div>
   </div>
 
-  <!-- 彈窗 3：部分結清 Modal -->
+  <!-- 彈窗 3：部分結清 Modal (含即時勾選加總面板) -->
   <div id="partialModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-4 space-y-4 max-h-[85vh] flex flex-col">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 p-4 space-y-3 max-h-[85vh] flex flex-col">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2">
         <div>
           <h3 class="font-bold text-slate-800 text-sm">部分結清作業</h3>
@@ -643,11 +637,24 @@
         <button onclick="closePartialModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
       </div>
 
-      <div class="text-xs text-slate-500 bg-amber-50 border border-amber-200 p-2 rounded-lg">
+      <div class="text-[11px] text-slate-500 bg-amber-50 border border-amber-200 p-2 rounded-lg leading-relaxed">
         請勾選<strong>「已還款」</strong>的項目，確認後點擊儲存，被勾選的項目將會被刪除結清。
       </div>
 
+      <!-- 項目清單 -->
       <div id="modalItemsList" class="space-y-2 overflow-y-auto flex-1 pr-1 text-xs"></div>
+
+      <!-- 即時加總提示面板 -->
+      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 space-y-1 text-xs">
+        <div class="flex justify-between text-slate-600">
+          <span>已選取筆數：</span>
+          <span id="partialSelectedCount" class="font-semibold text-slate-800">0 筆</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-emerald-200/60 pt-1 font-bold">
+          <span class="text-emerald-900">結清總金額加總：</span>
+          <span id="partialSelectedTotal" class="text-emerald-700 text-sm">NT$ 0</span>
+        </div>
+      </div>
 
       <div class="pt-2 border-t border-slate-100 flex gap-2">
         <button onclick="closePartialModal()" class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium">取消</button>
@@ -715,6 +722,7 @@
         date: "2026-09-03",
         title: "新增多幣別管理與常用 20 國幣別支援",
         notes: [
+          "部分結清即時加總：勾選已還款項目時自動加總金額與選取筆數。",
           "新增屬性與人員折疊抽屜：點擊按鈕才展開輸入框，保持頁面簡潔。",
           "排版修復：徹底解決手機端日期與幣別選單重疊問題，改為獨立流式排版。",
           "新增「📅 跳至今日」按鈕：一鍵快速帶入當天日期並自動重新查詢當日牌告匯率。",
@@ -770,7 +778,6 @@
     let pendingGoogleUser = null;
     let activePartialMember = null;
 
-    // ========== 抽屜展開/收起邏輯 ==========
     function toggleCategoryDrawer() {
       const drawer = document.getElementById('newCategoryDrawer');
       const isHidden = drawer.classList.contains('hidden');
@@ -1938,9 +1945,10 @@
       alert(`已將【${member}】的所有帳目結清！`);
     }
 
+    // ========== 部分結清 Modal (動態加總計算) ==========
     function openPartialModal(member) {
       activePartialMember = member;
-      document.getElementById('modalMemberName').innerText = `欠款成員：${member}`;
+      document.getElementById('modalMemberName').innerText = `成員：${member}`;
 
       const userItems = [];
       state.records.forEach(r => {
@@ -1957,19 +1965,32 @@
 
       const listContainer = document.getElementById('modalItemsList');
       listContainer.innerHTML = userItems.map((item) => `
-        <label class="flex items-start gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">
-          <input type="checkbox" name="partialCheckbox" value="${item.recordId}" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500">
+        <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition">
+          <input type="checkbox" name="partialCheckbox" value="${item.recordId}" data-amount="${item.amount}" onchange="updatePartialTotal()" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500">
           <div class="flex-1">
             <div class="flex justify-between font-medium text-slate-800">
               <span>${item.note} ${item.location ? `(${item.location})` : ''}</span>
-              <span class="text-rose-600">NT$ ${item.amount}</span>
+              <span class="text-rose-600 font-bold">NT$ ${item.amount.toLocaleString()}</span>
             </div>
-            <div class="text-[10px] text-slate-400">${item.date}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">${item.date}</div>
           </div>
         </label>
       `).join('');
 
+      updatePartialTotal();
       document.getElementById('partialModal').classList.remove('hidden');
+    }
+
+    // 即時計算勾選之金額加總與數量
+    function updatePartialTotal() {
+      const checkedBoxes = Array.from(document.querySelectorAll('input[name="partialCheckbox"]:checked'));
+      const count = checkedBoxes.length;
+      const sum = checkedBoxes.reduce((total, cb) => {
+        return total + (parseFloat(cb.dataset.amount) || 0);
+      }, 0);
+
+      document.getElementById('partialSelectedCount').innerText = `${count} 筆`;
+      document.getElementById('partialSelectedTotal').innerText = `NT$ ${sum.toLocaleString()}`;
     }
 
     function closePartialModal() {
