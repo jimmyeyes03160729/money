@@ -13,7 +13,17 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import {
+      getAuth,
+      signInWithPopup,
+      GoogleAuthProvider,
+      signOut,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      EmailAuthProvider,
+      linkWithCredential
+    } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyCAl-PY9lk41YGbq4HJIVElYJqiNdpPr2g",
@@ -30,6 +40,18 @@
     const db = getDatabase(app);
     const auth = getAuth(app);
     const googleProvider = new GoogleAuthProvider();
+
+    function normalizeUsername(username) {
+      const normalized = String(username || '').trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,30}$/.test(normalized)) {
+        throw new Error('帳號只能使用英文、數字、._-，長度需為 3～30 字元');
+      }
+      return normalized;
+    }
+
+    function usernameToAuthEmail(username) {
+      return `${normalizeUsername(username)}@moneyapp.example.com`;
+    }
 
     let activeDataRef = null;
     let unsubscribeListener = null;
@@ -57,24 +79,64 @@
         return snap.val();
       },
 
-      setGoogleBinding: async (uid, customUser, customPass, googleInfo = {}) => {
+      isUsernameTaken: async (customUser, currentUid = '') => {
+        const normalized = normalizeUsername(customUser);
+        const snap = await get(ref(db, `user_directory/${normalized}`));
+        if (!snap.exists()) return false;
+        const data = snap.val() || {};
+        // 舊資料若沒有 uid 也視為已被占用，避免被新 Google 帳號搶走同名帳號。
+        if (!data.uid) return true;
+        return !currentUid || data.uid !== currentUid;
+      },
+
+      setGoogleBinding: async (uid, customUser, googleInfo = {}) => {
+        const normalized = normalizeUsername(customUser);
         const bindingRef = ref(db, `bindings/${uid}`);
-        await set(bindingRef, { 
-          customUser, 
-          customPass, 
+
+        await set(bindingRef, {
+          customUser: normalized,
           googleName: googleInfo.displayName || '未提供名稱',
           googleEmail: googleInfo.email || '',
-          updatedAt: Date.now() 
+          updatedAt: Date.now(),
+          authVersion: 2
         });
 
-        const dirRef = ref(db, `user_directory/${customUser}`);
+        const dirRef = ref(db, `user_directory/${normalized}`);
+        const oldSnap = await get(dirRef);
+        const oldData = oldSnap.val() || {};
+
         await set(dirRef, {
-          customUser,
+          ...oldData,
+          customUser: normalized,
           uid,
-          googleName: googleInfo.displayName || '未提供名稱',
-          googleEmail: googleInfo.email || '',
-          registeredAt: Date.now()
+          googleName: googleInfo.displayName || oldData.googleName || '未提供名稱',
+          googleEmail: googleInfo.email || oldData.googleEmail || '',
+          registeredAt: oldData.registeredAt || Date.now(),
+          authVersion: 2
         });
+      },
+
+      getLegacyCredential: async (customUser) => {
+        const normalized = normalizeUsername(customUser);
+        const snap = await get(ref(db, `user_credentials/${normalized}`));
+        return snap.val();
+      },
+
+      cleanupLegacyCredential: async (uid, customUser) => {
+        const normalized = normalizeUsername(customUser);
+        const bindingRef = ref(db, `bindings/${uid}`);
+        const snap = await get(bindingRef);
+        const binding = snap.val();
+
+        if (binding) {
+          const safeBinding = { ...binding };
+          delete safeBinding.customPass;
+          safeBinding.authVersion = 2;
+          safeBinding.updatedAt = Date.now();
+          await set(bindingRef, safeBinding);
+        }
+
+        await remove(ref(db, `user_credentials/${normalized}`));
       },
 
       getAllUsersDirectory: async () => {
@@ -84,47 +146,48 @@
       },
 
       deleteUserAccount: async (customUser, uid) => {
-        if (customUser === 'jimmyeyes') {
+        const normalized = normalizeUsername(customUser);
+        if (normalized === 'jimmyeyes') {
           throw new Error('無法刪除主管理員帳號！');
         }
         if (uid) {
           await remove(ref(db, `bindings/${uid}`));
         }
-        await remove(ref(db, `user_credentials/${customUser}`));
-        await remove(ref(db, `users/${customUser}`));
-        await remove(ref(db, `user_directory/${customUser}`));
-      },
-
-      verifyCustomUser: async (customUser, pass) => {
-        const userRef = ref(db, `user_credentials/${customUser}`);
-        const snap = await get(userRef);
-        const data = snap.val();
-        if (data) return data.password === pass;
-        if (customUser === 'jimmyeyes' && pass === '22301989') return true;
-        return false;
-      },
-
-      saveCustomCredential: async (customUser, password) => {
-        const userRef = ref(db, `user_credentials/${customUser}`);
-        await set(userRef, { password, updatedAt: Date.now() });
-
-        const dirRef = ref(db, `user_directory/${customUser}`);
-        const snap = await get(dirRef);
-        if (!snap.exists()) {
-          await set(dirRef, {
-            customUser,
-            googleName: '帳密自訂用戶',
-            googleEmail: '-',
-            registeredAt: Date.now()
-          });
-        }
+        // 相容舊版殘留資料。新版不再建立 user_credentials。
+        await remove(ref(db, `user_credentials/${normalized}`));
+        await remove(ref(db, `users/${normalized}`));
+        await remove(ref(db, `user_directory/${normalized}`));
       }
     };
 
     window.cloudAuth = {
       loginWithGoogle: () => signInWithPopup(auth, googleProvider),
+
+      loginWithCustom: (username, password) => {
+        return signInWithEmailAndPassword(
+          auth,
+          usernameToAuthEmail(username),
+          password
+        );
+      },
+
+      linkCustomLogin: (firebaseUser, username, password) => {
+        const credential = EmailAuthProvider.credential(
+          usernameToAuthEmail(username),
+          password
+        );
+        return linkWithCredential(firebaseUser, credential);
+      },
+
+      hasPasswordProvider: (firebaseUser) => {
+        return !!firebaseUser?.providerData?.some(
+          provider => provider.providerId === 'password'
+        );
+      },
+
       logout: () => signOut(auth),
-      onAuthChange: (cb) => onAuthStateChanged(auth, cb)
+      onAuthChange: (cb) => onAuthStateChanged(auth, cb),
+      currentUser: () => auth.currentUser
     };
 
     window.dispatchEvent(new Event('firebase-ready'));
@@ -196,8 +259,8 @@
   <div id="bindModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 space-y-4">
       <div class="text-center">
-        <h2 class="text-base font-bold text-slate-800">首次 Google 綁定帳號</h2>
-        <p class="text-xs text-slate-500 mt-1">請為您的 Google 帳號設定專屬帳號名稱與密碼</p>
+        <h2 id="bindModalTitle" class="text-base font-bold text-slate-800">首次 Google 綁定帳號</h2>
+        <p id="bindModalDesc" class="text-xs text-slate-500 mt-1">請為您的 Google 帳號設定專屬帳號名稱與密碼</p>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">自訂帳號名稱</label>
@@ -210,7 +273,7 @@
                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <button onclick="confirmGoogleBinding()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm active:bg-indigo-700 shadow-md">
-        完成綁定並進入
+        <span id="bindSubmitText">完成綁定並進入</span>
       </button>
     </div>
   </div>
@@ -675,7 +738,7 @@
       </div>
 
       <div class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-        此處列出所有曾註冊/綁定的使用者帳號及 Google 資訊。刪除該帳號將會同步清除該用戶的登入授權與專屬記帳資料庫。
+        此處列出所有曾註冊/綁定的使用者帳號及 Google 資訊。刪除帳號會清除本系統綁定與專屬記帳資料；Firebase Authentication 使用者本體需由 Firebase Console 或後端管理。
       </div>
 
       <div id="adminUserList" class="space-y-2 overflow-y-auto flex-1 pr-1">
@@ -718,6 +781,16 @@
 
     const APP_CHANGELOG = [
       {
+        version: "v1.03",
+        date: "2026-09-08",
+        title: "帳號與密碼安全升級",
+        notes: [
+          "自訂帳密改由 Firebase Authentication 驗證，不再於 Realtime Database 儲存新密碼。",
+          "舊 Google 綁定帳號首次登入時自動搬移舊密碼；搬移成功後清除舊明碼資料。",
+          "移除前端硬編碼密碼與 localStorage 登入授權，登入狀態改由 Firebase Authentication 決定。"
+        ]
+      },
+      {
         version: "v1.02",
         date: "2026-09-03",
         title: "新增多幣別管理與常用 20 國幣別支援",
@@ -759,8 +832,9 @@
     const DEFAULT_CATEGORIES = ['分攤', '一般代墊'];
 
     let state = {
-      isLoggedIn: localStorage.getItem('app_auth') === 'true',
-      currentUser: localStorage.getItem('app_current_user') || '',
+      // 登入授權只由 Firebase Authentication 決定。
+      isLoggedIn: false,
+      currentUser: '',
       categories: JSON.parse(localStorage.getItem('app_categories')) || DEFAULT_CATEGORIES,
       selectedCategory: '分攤',
       members: JSON.parse(localStorage.getItem('app_members')) || [],
@@ -776,6 +850,8 @@
     if (!state.categories.includes('分攤')) state.categories.unshift('分攤');
 
     let pendingGoogleUser = null;
+    let pendingBindingMode = 'new';
+    let pendingExistingBinding = null;
     let activePartialMember = null;
 
     function toggleCategoryDrawer() {
@@ -949,20 +1025,34 @@
     }
 
     window.addEventListener('firebase-ready', () => {
-      if (window.cloudAuth) {
-        window.cloudAuth.onAuthChange(async (user) => {
-          if (user && !state.isLoggedIn) {
-            const binding = await window.cloudDB.getGoogleBinding(user.uid);
-            if (binding && binding.customUser) {
-              loginSuccess(binding.customUser);
-            }
-          }
-        });
-      }
+      if (!window.cloudAuth) return;
 
-      if (state.isLoggedIn && state.currentUser) {
-        attachCloudSync(state.currentUser);
-      }
+      window.cloudAuth.onAuthChange(async (user) => {
+        if (!user) {
+          state.isLoggedIn = false;
+          state.currentUser = '';
+          localStorage.removeItem('app_auth');
+          localStorage.removeItem('app_current_user');
+          init();
+          return;
+        }
+
+        try {
+          const binding = await window.cloudDB.getGoogleBinding(user.uid);
+          if (binding && binding.customUser) {
+            // 已登入的既有 Google session 也嘗試自動搬移舊密碼。
+            // 若 Firebase 尚未啟用 Email/Password，Google 登入本身仍可繼續使用。
+            try {
+              await migrateLegacyPasswordIfNeeded(user, binding, false);
+            } catch (migrationErr) {
+              console.warn('背景帳密升級尚未完成:', migrationErr);
+            }
+            loginSuccess(binding.customUser);
+          }
+        } catch (err) {
+          console.error('Firebase 登入狀態處理失敗:', err);
+        }
+      });
     });
 
     function init() {
@@ -1126,6 +1216,103 @@
       }
     }
 
+    function setupBindingModal(mode, username = '') {
+      const title = document.getElementById('bindModalTitle');
+      const desc = document.getElementById('bindModalDesc');
+      const userInput = document.getElementById('bindUsername');
+      const passInput = document.getElementById('bindPassword');
+      const submitText = document.getElementById('bindSubmitText');
+
+      pendingBindingMode = mode;
+      passInput.value = '';
+
+      if (mode === 'migration') {
+        title.innerText = '升級帳號密碼安全';
+        desc.innerText = '請設定一組新密碼。完成後密碼只由 Firebase Authentication 管理，不再存入資料庫。';
+        userInput.value = username;
+        userInput.readOnly = true;
+        userInput.classList.add('bg-slate-100');
+        submitText.innerText = '設定新密碼並完成升級';
+      } else {
+        title.innerText = '首次 Google 綁定帳號';
+        desc.innerText = '請為您的 Google 帳號設定專屬帳號名稱與密碼';
+        userInput.value = '';
+        userInput.readOnly = false;
+        userInput.classList.remove('bg-slate-100');
+        submitText.innerText = '完成綁定並進入';
+      }
+
+      document.getElementById('bindModal').classList.remove('hidden');
+    }
+
+    async function migrateLegacyPasswordIfNeeded(firebaseUser, binding, interactive = false) {
+      if (!firebaseUser || !binding || !binding.customUser) return false;
+
+      // 已是新版 Firebase Password 登入：只清理舊資料。
+      if (window.cloudAuth.hasPasswordProvider(firebaseUser)) {
+        if (binding.customPass || binding.authVersion !== 2) {
+          await window.cloudDB.cleanupLegacyCredential(
+            firebaseUser.uid,
+            binding.customUser
+          );
+        }
+        return true;
+      }
+
+      // 舊版可能把密碼放在 bindings/customPass 或 user_credentials/password。
+      let legacyPassword = binding.customPass || '';
+      if (!legacyPassword) {
+        const legacy = await window.cloudDB.getLegacyCredential(binding.customUser);
+        legacyPassword = legacy?.password || '';
+      }
+
+      if (legacyPassword) {
+        try {
+          await window.cloudAuth.linkCustomLogin(
+            firebaseUser,
+            binding.customUser,
+            legacyPassword
+          );
+
+          await window.cloudDB.cleanupLegacyCredential(
+            firebaseUser.uid,
+            binding.customUser
+          );
+          return true;
+        } catch (err) {
+          if (err?.code === 'auth/provider-already-linked') {
+            await window.cloudDB.cleanupLegacyCredential(
+              firebaseUser.uid,
+              binding.customUser
+            );
+            return true;
+          }
+
+          if (err?.code === 'auth/operation-not-allowed') {
+            throw new Error('Firebase Authentication 尚未啟用 Email/Password 登入。');
+          }
+
+          if (
+            err?.code === 'auth/email-already-in-use' ||
+            err?.code === 'auth/credential-already-in-use'
+          ) {
+            throw new Error('這個自訂帳號已被另一個 Firebase Authentication 使用者占用，請先檢查 Firebase Authentication 使用者。');
+          }
+
+          throw err;
+        }
+      }
+
+      // 找不到可安全搬移的舊密碼時，不再沿用任何寫死於前端的舊密碼。
+      // 必須由已通過 Google 驗證的本人重新設定。
+      if (interactive) {
+        pendingGoogleUser = firebaseUser;
+        pendingExistingBinding = binding;
+        setupBindingModal('migration', binding.customUser);
+      }
+      return false;
+    }
+
     async function handleGoogleSignIn() {
       try {
         const result = await window.cloudAuth.loginWithGoogle();
@@ -1133,59 +1320,174 @@
         const binding = await window.cloudDB.getGoogleBinding(googleUser.uid);
 
         if (binding && binding.customUser) {
-          loginSuccess(binding.customUser);
+          const migrated = await migrateLegacyPasswordIfNeeded(
+            googleUser,
+            binding,
+            true
+          );
+
+          if (migrated) {
+            loginSuccess(binding.customUser);
+          }
         } else {
           pendingGoogleUser = googleUser;
-          document.getElementById('bindUsername').value = '';
-          document.getElementById('bindPassword').value = '';
-          document.getElementById('bindModal').classList.remove('hidden');
+          pendingExistingBinding = null;
+          setupBindingModal('new');
         }
       } catch (err) {
+        console.error('Google 登入失敗:', err);
         alert('Google 登入失敗或已取消：' + err.message);
       }
     }
 
     async function confirmGoogleBinding() {
+      if (!pendingGoogleUser) {
+        return alert('Google 登入狀態已失效，請重新使用 Google 登入。');
+      }
+
       const customUser = document.getElementById('bindUsername').value.trim().toLowerCase();
-      const customPass = document.getElementById('bindPassword').value.trim();
+      // 密碼不要 trim，避免無意改變使用者原本輸入內容。
+      const customPass = document.getElementById('bindPassword').value;
 
       if (!customUser) return alert('請輸入自訂帳號！');
       if (!customPass) return alert('請設定專屬密碼！');
+      if (customPass.length < 6) return alert('密碼至少需要 6 個字元！');
 
       try {
-        await window.cloudDB.saveCustomCredential(customUser, customPass);
-        await window.cloudDB.setGoogleBinding(pendingGoogleUser.uid, customUser, customPass, {
-          displayName: pendingGoogleUser.displayName,
-          email: pendingGoogleUser.email
-        });
+        if (pendingBindingMode === 'migration') {
+          const expectedUser = pendingExistingBinding?.customUser || '';
+          if (!expectedUser || customUser !== expectedUser) {
+            throw new Error('帳號資料不一致，請重新登入。');
+          }
+
+          try {
+            await window.cloudAuth.linkCustomLogin(
+              pendingGoogleUser,
+              customUser,
+              customPass
+            );
+          } catch (err) {
+            if (err?.code !== 'auth/provider-already-linked') throw err;
+          }
+
+          await window.cloudDB.setGoogleBinding(
+            pendingGoogleUser.uid,
+            customUser,
+            {
+              displayName: pendingGoogleUser.displayName,
+              email: pendingGoogleUser.email
+            }
+          );
+
+          await window.cloudDB.cleanupLegacyCredential(
+            pendingGoogleUser.uid,
+            customUser
+          );
+        } else {
+          const isTaken = await window.cloudDB.isUsernameTaken(
+            customUser,
+            pendingGoogleUser.uid
+          );
+          if (isTaken) {
+            return alert('這個自訂帳號已有人使用，請更換帳號名稱。');
+          }
+
+          try {
+            await window.cloudAuth.linkCustomLogin(
+              pendingGoogleUser,
+              customUser,
+              customPass
+            );
+          } catch (err) {
+            if (err?.code !== 'auth/provider-already-linked') throw err;
+          }
+
+          await window.cloudDB.setGoogleBinding(
+            pendingGoogleUser.uid,
+            customUser,
+            {
+              displayName: pendingGoogleUser.displayName,
+              email: pendingGoogleUser.email
+            }
+          );
+
+          // 若同名帳號曾留下舊版明碼資料，在新綁定成功後一併清掉。
+          await window.cloudDB.cleanupLegacyCredential(
+            pendingGoogleUser.uid,
+            customUser
+          );
+        }
+
+        document.getElementById('bindPassword').value = '';
         document.getElementById('bindModal').classList.add('hidden');
-        loginSuccess(customUser);
-        alert(`已成功將 Google 帳號綁定至【${customUser}】！`);
+
+        const completedUser = customUser;
+        pendingGoogleUser = null;
+        pendingExistingBinding = null;
+        pendingBindingMode = 'new';
+
+        loginSuccess(completedUser);
+        alert('帳號安全設定完成！密碼已改由 Firebase Authentication 管理。');
       } catch (err) {
-        alert('綁定失敗：' + err.message);
+        console.error('帳號綁定/升級失敗:', err);
+
+        if (err?.code === 'auth/operation-not-allowed') {
+          alert('Firebase Authentication 尚未啟用 Email/Password。請先到 Firebase Console → Authentication → Sign-in method 啟用 Email/Password。');
+          return;
+        }
+        if (err?.code === 'auth/email-already-in-use' ||
+            err?.code === 'auth/credential-already-in-use') {
+          alert('這個自訂帳號已經被其他 Firebase Authentication 使用者使用。');
+          return;
+        }
+        if (err?.code === 'auth/weak-password') {
+          alert('密碼強度不足，請至少輸入 6 個字元。');
+          return;
+        }
+
+        alert('設定失敗：' + err.message);
       }
     }
 
     async function handleCustomLogin() {
       const user = document.getElementById('loginUser').value.trim().toLowerCase();
-      const pass = document.getElementById('loginPass').value.trim();
+      const pass = document.getElementById('loginPass').value;
+      const errorEl = document.getElementById('loginError');
 
       if (!user || !pass) return alert('請輸入帳號與密碼！');
 
-      const isValid = await window.cloudDB.verifyCustomUser(user, pass);
-      if (isValid) {
-        document.getElementById('loginError').classList.add('hidden');
-        loginSuccess(user);
-      } else {
-        document.getElementById('loginError').classList.remove('hidden');
+      try {
+        const result = await window.cloudAuth.loginWithCustom(user, pass);
+        const binding = await window.cloudDB.getGoogleBinding(result.user.uid);
+
+        if (!binding || binding.customUser !== user) {
+          await window.cloudAuth.logout();
+          throw new Error('帳號尚未完成安全綁定。');
+        }
+
+        errorEl.classList.add('hidden');
+        document.getElementById('loginPass').value = '';
+        loginSuccess(binding.customUser);
+      } catch (err) {
+        console.error('帳密登入失敗:', err);
+
+        if (err?.code === 'auth/operation-not-allowed') {
+          errorEl.innerText = 'Firebase 尚未啟用 Email/Password 登入。';
+        } else {
+          errorEl.innerText = '帳號或密碼錯誤；舊帳號請先使用 Google 登入一次完成安全升級。';
+        }
+        errorEl.classList.remove('hidden');
       }
     }
 
     function loginSuccess(username) {
       state.isLoggedIn = true;
       state.currentUser = username;
-      localStorage.setItem('app_auth', 'true');
-      localStorage.setItem('app_current_user', username);
+
+      // localStorage 僅保留記帳快取，不再保存/決定登入授權。
+      localStorage.removeItem('app_auth');
+      localStorage.removeItem('app_current_user');
+
       attachCloudSync(username);
       init();
     }
@@ -1195,8 +1497,12 @@
         if (window.cloudAuth) {
           await window.cloudAuth.logout();
         }
+
         localStorage.removeItem('app_auth');
         localStorage.removeItem('app_current_user');
+        document.getElementById('loginPass').value = '';
+        document.getElementById('bindPassword').value = '';
+
         state.isLoggedIn = false;
         state.currentUser = '';
         init();
